@@ -1,0 +1,100 @@
+namespace mat_mul:
+    uint A_ROWS = 4;
+    uint A_COLS_B_ROWS = 5;
+    uint B_COLS = 6;
+
+    actor Source(uint R, uint C) ==> int Out:
+        int counter := 0;
+        transmit: action ==> Out:[t]
+        guard counter < R*C
+        var 
+            int t = counter
+        do
+            if (counter = 0) then
+                print("[");
+            else
+                if (counter mod C = 0) then
+                    println("");
+                    print(" ");
+                end
+            end
+
+            print("" + t + " ");
+
+            if(counter = R*C - 1) then
+                println("]");
+            end
+            
+            counter := counter + 1;
+        end
+    end
+
+    actor Sink() int In ==> :
+        receive: action In:[t] ==> 
+        do
+            println("Rx: " + t);
+        end
+    end
+
+    actor MatrixMultiplier(int R_A, int C_AandR_B, int C_B) int InA, int InB ==> int OutC:
+        uint sizeA = R_A*C_AandR_B;
+        uint sizeB = C_B*C_AandR_B;
+        uint sizeC = R_A*C_B;
+        List(type:int, size=sizeA) matA;
+        List(type:int, size=sizeB) matB;
+        uint receivedA := 0;
+        uint receivedB := 0;
+
+        recieveA: action InA:[t] ==>
+        do
+            matA[receivedA] := t;
+            receivedA := receivedA + 1;
+        end
+
+        recieveB: action InB:[t] ==>
+        do
+            matB[receivedB] := t;
+            receivedB := receivedB + 1;
+        end
+
+        multiply: action ==> OutC:[matC] repeat sizeC
+        guard 
+            receivedA = sizeA,
+            receivedB = sizeB
+        var
+            List(type:int, size=sizeC) matC,
+            int product
+        do
+            foreach uint outer_left in 0..R_A-1 do
+                foreach uint outer_right in 0..C_B-1 do
+                    foreach uint inner in 0..C_AandR_B-1 do
+                        product := matA[outer_left*C_AandR_B + inner] * matB[inner*C_B + outer_right];
+                        if (inner = 0) then
+                            matC[outer_left*C_B + outer_right] := product;//product;
+                        else
+                            matC[outer_left*C_B + outer_right] := matC[outer_left*C_B + outer_right] + product;
+                        end
+                    end
+                end
+            end
+
+            receivedA := 0;
+            receivedB := 0;
+        end
+
+    end
+
+    network Top() ==>:
+    entities
+        sourceA = Source(R=A_ROWS,C=A_COLS_B_ROWS);
+        sourceB = Source(R=A_COLS_B_ROWS,C=B_COLS);
+        matMultiplier = MatrixMultiplier(R_A=A_ROWS, C_AandR_B=A_COLS_B_ROWS, C_B=B_COLS);
+        sink = Sink();
+    structure
+        sourceA.Out --> matMultiplier.InA;
+        sourceB.Out --> matMultiplier.InB;
+        matMultiplier.OutC --> sink.In;
+    end
+
+end
+
