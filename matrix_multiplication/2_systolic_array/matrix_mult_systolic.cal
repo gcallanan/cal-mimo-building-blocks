@@ -34,7 +34,7 @@ namespace mat_mul:
         end
     end
 
-    actor PE(uint common_dimension, uint R_index, uint C_index) int In_top, int In_left ==> int Out_bot, int Out_right, int C_element:
+    actor PE(uint common_dimension) int In_top, int In_left ==> int Out_bot, int Out_right, int C_element:
         int product;
         int num_calculations;
         
@@ -60,7 +60,7 @@ namespace mat_mul:
         end
     end
 
-    actor PERight(uint common_dimension, uint R_index, uint C_index) int In_top, int In_left ==> int Out_bot, int C_element:
+    actor PERight(uint common_dimension) int In_top, int In_left ==> int Out_bot, int C_element:
         int product;
         int num_calculations;
         
@@ -86,7 +86,7 @@ namespace mat_mul:
         end
     end
 
-    actor PEBottom(uint common_dimension, uint R_index, uint C_index) int In_top, int In_left ==> int Out_right, int C_element:
+    actor PEBottom(uint common_dimension) int In_top, int In_left ==> int Out_right, int C_element:
         int product;
         int num_calculations;
         
@@ -112,7 +112,7 @@ namespace mat_mul:
         end
     end
 
-    actor PEBottomRight(uint common_dimension, uint R_index, uint C_index) int In_top, int In_left ==> int C_element:
+    actor PEBottomRight(uint common_dimension) int In_top, int In_left ==> int C_element:
         int product;
         int num_calculations;
         
@@ -154,10 +154,10 @@ namespace mat_mul:
     entities
         sourceA = SourceA(R=A_ROWS,C=A_COLS_B_ROWS);
         sourceB = SourceB(R=A_COLS_B_ROWS,C=B_COLS);
-        pes=[PE(common_dimension=A_COLS_B_ROWS, R_index= index / (B_COLS-1), C_index=(index mod (B_COLS-1))): for index in 0..(A_ROWS-1)*(B_COLS-1)-1];
-        pes_right = [PERight(common_dimension=A_COLS_B_ROWS, R_index=r, C_index=B_COLS-1): for r in 0..A_ROWS-2];
-        pes_bottom = [PEBottom(common_dimension=A_COLS_B_ROWS, R_index=A_ROWS-1, C_index=c): for c in 0..B_COLS-2];
-        pe_bottom_right = PEBottomRight(common_dimension=A_COLS_B_ROWS, R_index=A_ROWS-1, C_index=B_COLS-1);
+        pes=[PE(common_dimension=A_COLS_B_ROWS): for index in 0..(A_ROWS-1)*(B_COLS-1)-1];
+        pes_right = [PERight(common_dimension=A_COLS_B_ROWS): for r in 0..A_ROWS-2];
+        pes_bottom = [PEBottom(common_dimension=A_COLS_B_ROWS): for c in 0..B_COLS-2];
+        pe_bottom_right = PEBottomRight(common_dimension=A_COLS_B_ROWS);
         collector = Collector(R=A_ROWS,C=B_COLS);
     structure
         // Connect matrix A source to grid
