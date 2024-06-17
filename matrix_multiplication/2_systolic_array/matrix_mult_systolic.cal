@@ -25,8 +25,10 @@ namespace mat_mul:
             List(type:int, size = C) output
         do
             foreach uint index in 0..C-1 do
+                //print("" + (rowsOut * C + index) + " ");
                 output[index] := rowsOut * C + index;
             end
+            //println("");
             rowsOut := rowsOut + 1;
         end
     end
@@ -175,7 +177,7 @@ namespace mat_mul:
                 if row_index < A_ROWS-2 && col_index < B_COLS-2 then
                     pes[row_index*(B_COLS-1) + col_index].Out_right --> pes[row_index*(B_COLS-1) + col_index + 1].In_left;
                     pes[row_index*(B_COLS-1) + col_index].Out_bot --> pes[(row_index+1)*(B_COLS-1) + col_index].In_top;
-                    pes[row_index*(B_COLS-1) + col_index].C_element --> collector.In[row_index*(B_COLS-1) + col_index];
+                    pes[row_index*(B_COLS-1) + col_index].C_element --> collector.In[row_index*(B_COLS) + col_index];
                 end
 
                 if (row_index = A_ROWS-2 && col_index = B_COLS-2) then
