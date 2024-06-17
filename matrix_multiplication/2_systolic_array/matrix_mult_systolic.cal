@@ -2,6 +2,7 @@ namespace mat_mul:
     uint A_ROWS = 4;
     uint A_COLS_B_ROWS = 5;
     uint B_COLS = 6;
+    uint buffer_size=10;
 
     actor SourceA(uint R, uint C) ==> int Out[R]:
         int colsOut := 0;
@@ -153,7 +154,7 @@ namespace mat_mul:
     entities
         sourceA = SourceA(R=A_ROWS,C=A_COLS_B_ROWS);
         sourceB = SourceB(R=A_COLS_B_ROWS,C=B_COLS);
-        pes=[PE(common_dimension=A_COLS_B_ROWS, R_index= index / (B_COLS-1), C_index=(index mod (B_COLS-1))): for index in 0..(A_ROWS-1)*(B_COLS-1)];
+        pes=[PE(common_dimension=A_COLS_B_ROWS, R_index= index / (B_COLS-1), C_index=(index mod (B_COLS-1))): for index in 0..(A_ROWS-1)*(B_COLS-1)-1];
         pes_right = [PERight(common_dimension=A_COLS_B_ROWS, R_index=r, C_index=B_COLS-1): for r in 0..A_ROWS-2];
         pes_bottom = [PEBottom(common_dimension=A_COLS_B_ROWS, R_index=A_ROWS-1, C_index=c): for c in 0..B_COLS-2];
         pe_bottom_right = PEBottomRight(common_dimension=A_COLS_B_ROWS, R_index=A_ROWS-1, C_index=B_COLS-1);
@@ -161,7 +162,7 @@ namespace mat_mul:
     structure
         // Connect matrix A source to grid
         foreach uint i in 0..A_ROWS-2 do
-            sourceA.Out[i] --> pes[i*(B_COLS-1)].In_left {bufferSize = 100;};
+            sourceA.Out[i] --> pes[i*(B_COLS-1)].In_left {bufferSize = buffer_size;};
         end
         sourceA.Out[A_ROWS-1] --> pes_bottom[0].In_left {bufferSize = 100;};
 
@@ -175,51 +176,51 @@ namespace mat_mul:
         foreach uint row_index in 0..A_ROWS-1 do
             foreach uint col_index in 0..B_COLS-1 do
                 if row_index < A_ROWS-2 && col_index < B_COLS-2 then
-                    pes[row_index*(B_COLS-1) + col_index].Out_right --> pes[row_index*(B_COLS-1) + col_index + 1].In_left;
-                    pes[row_index*(B_COLS-1) + col_index].Out_bot --> pes[(row_index+1)*(B_COLS-1) + col_index].In_top;
-                    pes[row_index*(B_COLS-1) + col_index].C_element --> collector.In[row_index*(B_COLS) + col_index];
+                    pes[row_index*(B_COLS-1) + col_index].Out_right --> pes[row_index*(B_COLS-1) + col_index + 1].In_left {bufferSize = 100;};
+                    pes[row_index*(B_COLS-1) + col_index].Out_bot --> pes[(row_index+1)*(B_COLS-1) + col_index].In_top {bufferSize = 100;};
+                    pes[row_index*(B_COLS-1) + col_index].C_element --> collector.In[row_index*(B_COLS) + col_index] {bufferSize = 100;};
                 end
 
                 if (row_index = A_ROWS-2 && col_index = B_COLS-2) then
-                    pes[row_index*(B_COLS-1) + col_index].Out_bot --> pes_bottom[col_index].In_top;
-                    pes[row_index*(B_COLS-1) + col_index].Out_right --> pes_right[row_index].In_left;
-                    pes[row_index*(B_COLS-1) + col_index].C_element --> collector.In[row_index*(B_COLS) + col_index];
+                    pes[row_index*(B_COLS-1) + col_index].Out_bot --> pes_bottom[col_index].In_top {bufferSize = 100;};
+                    pes[row_index*(B_COLS-1) + col_index].Out_right --> pes_right[row_index].In_left {bufferSize = 100;};
+                    pes[row_index*(B_COLS-1) + col_index].C_element --> collector.In[row_index*(B_COLS) + col_index] {bufferSize = 100;};
                 end
 
                 if row_index = A_ROWS-2 && col_index < B_COLS-2 then
-                    pes[row_index*(B_COLS-1) + col_index].Out_right --> pes[row_index*(B_COLS-1) + col_index + 1].In_left;
-                    pes[row_index*(B_COLS-1) + col_index].Out_bot --> pes_bottom[col_index].In_top;
-                    pes[row_index*(B_COLS-1) + col_index].C_element --> collector.In[row_index*(B_COLS) + col_index];
+                    pes[row_index*(B_COLS-1) + col_index].Out_right --> pes[row_index*(B_COLS-1) + col_index + 1].In_left {bufferSize = 100;};
+                    pes[row_index*(B_COLS-1) + col_index].Out_bot --> pes_bottom[col_index].In_top {bufferSize = 100;};
+                    pes[row_index*(B_COLS-1) + col_index].C_element --> collector.In[row_index*(B_COLS) + col_index] {bufferSize = 100;};
                 end
 
                 if row_index = A_ROWS-1 && col_index < B_COLS-2 then
-                    pes_bottom[col_index].Out_right --> pes_bottom[col_index+1].In_left;
-                    pes_bottom[col_index].C_element --> collector.In[row_index*(B_COLS) + col_index];
+                    pes_bottom[col_index].Out_right --> pes_bottom[col_index+1].In_left {bufferSize = 100;};
+                    pes_bottom[col_index].C_element --> collector.In[row_index*(B_COLS) + col_index] {bufferSize = 100;};
                 end
 
                 if row_index = A_ROWS-1 && col_index = B_COLS-2 then
-                    pes_bottom[col_index].Out_right --> pe_bottom_right.In_left;
-                    pes_bottom[col_index].C_element --> collector.In[row_index*(B_COLS) + col_index];
+                    pes_bottom[col_index].Out_right --> pe_bottom_right.In_left {bufferSize = 100;};
+                    pes_bottom[col_index].C_element --> collector.In[row_index*(B_COLS) + col_index] {bufferSize = 100;};
                 end
 
                 if row_index < A_ROWS-2 && col_index = B_COLS-2 then
-                    pes[row_index*(B_COLS-1) + col_index].Out_bot --> pes[(row_index+1)*(B_COLS-1) + col_index].In_top;
-                    pes[row_index*(B_COLS-1) + col_index].Out_right --> pes_right[row_index].In_left;
-                    pes[row_index*(B_COLS-1) + col_index].C_element --> collector.In[row_index*(B_COLS) + col_index];
+                    pes[row_index*(B_COLS-1) + col_index].Out_bot --> pes[(row_index+1)*(B_COLS-1) + col_index].In_top {bufferSize = 100;};
+                    pes[row_index*(B_COLS-1) + col_index].Out_right --> pes_right[row_index].In_left {bufferSize = 100;};
+                    pes[row_index*(B_COLS-1) + col_index].C_element --> collector.In[row_index*(B_COLS) + col_index] {bufferSize = 100;};
                 end
 
                 if row_index < A_ROWS-2 && col_index = B_COLS-1 then
-                     pes_right[row_index].Out_bot --> pes_right[row_index+1].In_top;
-                     pes_right[row_index].C_element --> collector.In[row_index*(B_COLS) + col_index];
+                     pes_right[row_index].Out_bot --> pes_right[row_index+1].In_top {bufferSize = 100;};
+                     pes_right[row_index].C_element --> collector.In[row_index*(B_COLS) + col_index] {bufferSize = 100;};
                 end
 
                 if row_index = A_ROWS-2 && col_index = B_COLS-1 then
-                     pes_right[row_index].Out_bot --> pe_bottom_right.In_top;
-                     pes_right[row_index].C_element --> collector.In[row_index*(B_COLS) + col_index];
+                     pes_right[row_index].Out_bot --> pe_bottom_right.In_top {bufferSize = 100;};
+                     pes_right[row_index].C_element --> collector.In[row_index*(B_COLS) + col_index] {bufferSize = 100;};
                 end
 
                 if row_index = A_ROWS-1 && col_index = B_COLS-1 then
-                    pe_bottom_right.C_element --> collector.In[row_index*(B_COLS) + col_index];
+                    pe_bottom_right.C_element --> collector.In[row_index*(B_COLS) + col_index] {bufferSize = 100;};
                 end
             end
         end
