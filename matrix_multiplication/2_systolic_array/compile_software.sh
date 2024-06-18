@@ -4,7 +4,7 @@ current_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 
 rm -rf myproject/build
 
-streamblocks multicore --set experimental-network-elaboration=on --source-path matrix_mult_systolic.cal --target-path myproject mat_mul.Top
+streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path matrix_mult_systolic.cal --target-path myproject mat_mul.Top
 #tychoc --set experimental-network-elaboration=on --source-path matrix_mult_systolic.cal --target-path myproject mat_mul.Top
 
 mkdir -p  myproject/build/
