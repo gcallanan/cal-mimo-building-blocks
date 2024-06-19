@@ -2,7 +2,7 @@
  * @author: Gareth Callanan
  *
  * @description: This creates an actor network that multiplies two matrices 
- * (A and B) together to produce output matrix C. 
+ * (A and B) together to produce output matrix C (AB=C). 
  *
  * The actor network is modelled as a systolic array as outlined in figure 2-4
  * (page 12) of:
@@ -285,6 +285,19 @@ namespace mat_mul:
         end
     end
 
+    /**
+     * Actor that collects individual elements for C matrix of size RxC. Sent to it from the 
+     * individual PEs. Each element is captured on a different port.
+     * 
+     *  
+     *
+     * @parameter  R - the number of rows in the matrix
+     * @paramter   C - the number of columns in the matrix.
+     * @outputport Out[R*C] - An array of ports that matrix C is received from.
+     *                        Each processing element calculates a different
+     *                        element in C and sends it to the collector on a 
+     *                        different port.
+     */
     actor Collector(uint R, uint C) int In[R*C] ==>:
         action In[0..((R*C)-1)]:[matrix] ==>
         do
@@ -298,6 +311,14 @@ namespace mat_mul:
         end
     end
 
+    /**
+     * Top network connecting all the above actors into a systolic array
+     * of size MxN PEs as shown in the diagram in the top comment of this file. 
+     
+     * The network has a source A and a source B actor generating Matrix A and B
+     * and feeding them into the file. Additionally it has a Collector matrix
+     * that takes the output from the PE and prints the generated C matrix.
+     */
     network Top() ==>:
     entities
         sourceA = SourceA(R=M,C=K);
@@ -321,7 +342,8 @@ namespace mat_mul:
         end
         sourceB.Out[N-1] --> pes_right[0].In_top {bufferSize = buffer_size;};
 
-        // Connect all grid elements to each other
+        // Connect all grid elements to each other - this looks a bit clunky, it could maybe be done in a better way
+        // but it produces all the correct results.
         foreach uint row_index in 0..M-1 do
             foreach uint col_index in 0..N-1 do
                 if row_index < M-2 && col_index < N-2 then
@@ -384,6 +406,10 @@ namespace mat_mul:
         end
     end
 
+    /**
+     * A debug actor for testing SourceA. Connect all the output ports of SourceA to the input ports of SinkA and
+     * during execution, SinkA will print out the matrix produced by SourceA
+     */
     actor SinkA(uint R, uint C) int In[R] ==> :
         List(type:int, size=R*C) matrix;
         uint receivedCols := 0;
@@ -411,6 +437,10 @@ namespace mat_mul:
         end
     end
 
+    /**
+     * A debug actor for testing SourceB. Connect all the output ports of SourceA to the input ports of SinkA and
+     * during execution, SinkB will print out the matrix produced by SourceA
+     */
     actor SinkB(uint R, uint C) int In[C] ==> :
         List(type:int, size=R*C) matrix;
         uint receivedRows := 0;
@@ -434,6 +464,11 @@ namespace mat_mul:
         end
     end
 
+    /**
+     * A simple cap actor to be used in cases where the Collector actor is not being used. Just consumes the C_element
+     * from a PE and prints it out. Avoids the hardware backend having to generate a really big collector actor
+     * with very high fan in.
+     */
     actor SinkCap(uint index) int In ==>:
         receive: action In:[t] ==> 
         do

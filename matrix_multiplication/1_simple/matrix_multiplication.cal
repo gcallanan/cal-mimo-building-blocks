@@ -1,8 +1,41 @@
+/**
+ * @author: Gareth Callanan
+ *
+ * @description: This creates an very simple actor network where Matrix A and 
+ * Matrix B are fed into a single actor. This single actor multiplies the
+ * two matrices together and feeds the output to a sink actor which
+ * prints out the results.
+ *
+ * The network looks as follows:
+ *
+ *  (A) Source --> |----------|
+ *                 |Multiplier| --> Sink (C)
+ *  (B) Source --> |----------|
+ * 
+ * Matrix A is of size MxK, Matrix B is of Size KxN and Matrix C is of size MxN.
+ *
+ * This is solution is not meant to be an efficient implementation, only a naive
+ * first implementation.
+ */
 namespace mat_mul:
-    uint A_ROWS = 4;
-    uint A_COLS_B_ROWS = 5;
-    uint B_COLS = 6;
+    // Dimension M: The number of rows in matrix A.
+    uint M = 4;
 
+    // Dimension K: The number of columns in matrix A and columns in matrix B.
+    uint K = 5;
+    
+    // Dimension N: The number of columns in matrix B.
+    uint N = 6; 
+
+    /**
+     * Source actor that produces a matrix of size RxC. The elements in the matrix are output on
+     * the Out port, one element at a time. The matrix is transmitted by row by row, starting from
+     * the left most element in the row moving to the right.
+     *
+     * @parameter  R - the number of rows in the matrix
+     * @paramter   C - the number of columns in the matrix.
+     * @outputport Out - The port that the matrix is output on element by element.
+     */
     actor Source(uint R, uint C) ==> int Out:
         int counter := 0;
         transmit: action ==> Out:[t]
@@ -29,13 +62,59 @@ namespace mat_mul:
         end
     end
 
-    actor Sink() int In ==> :
+    /**
+     * Source actor that receivess a matrix of size RxC and print it out. The elements in the matrix are received on
+     * the In port, one element at a time. The matrix is received row by row, starting from
+     * the left most element in the row moving to the right.
+     *
+     * @parameter  R - the number of rows in the matrix
+     * @paramter   C - the number of columns in the matrix.
+     * @outputport Out - The port that the matrix is received from, element by element.
+     */
+    actor Sink(uint R, uint C) int In ==> :
+        int rowCounter := 0;
+        int colCounter := 0;
         receive: action In:[t] ==> 
         do
-            println("Rx: " + t);
+            if(colCounter = 0) then
+                if(rowCounter = 0) then
+                    print("[");
+                else
+                    print(" ");
+                end
+            end
+
+            print(""+ t + " ");
+            colCounter := colCounter + 1;
+            if(colCounter = C) then
+                rowCounter := rowCounter + 1;
+                if(rowCounter = R) then
+                    println("]");
+                    rowCounter := 0;
+                else 
+                    println("");
+                end
+                colCounter := 0;
+            end
+
         end
     end
 
+    /**
+     * Actor that multiplies two matrices (A and B) together to produce matrix C (AB=C)
+     *
+     * Matrices A and B are received one element at a time. Actions receiveA and receiveB
+     * process these received tokens and store them in an internal array. Once both
+     * arrays have been fully received, the multiply action multiples the two together and
+     * outputs the produced matrix C on the Out ports.
+     *
+     * @parameter  R_A - the number of rows in the matrix A (and C). 
+     * @parameter  C_AandR_B - The number of columns in A and rows in B.
+     * @paramter   C_B - the number of columns in the matrix B (and C).
+     * @inputport InA - The port that matrix C is transmitted out on, element by element.
+     * @inputport InB - The port that matrix C is transmitted out on, element by element.
+     * @outputport Out - The port that matrix C is transmitted out on, element by element.
+     */
     actor MatrixMultiplier(int R_A, int C_AandR_B, int C_B) int InA, int InB ==> int OutC:
         uint sizeA = R_A*C_AandR_B;
         uint sizeB = C_B*C_AandR_B;
@@ -45,13 +124,13 @@ namespace mat_mul:
         uint receivedA := 0;
         uint receivedB := 0;
 
-        recieveA: action InA:[t] ==>
+        receiveA: action InA:[t] ==>
         do
             matA[receivedA] := t;
             receivedA := receivedA + 1;
         end
 
-        recieveB: action InB:[t] ==>
+        receiveB: action InB:[t] ==>
         do
             matB[receivedB] := t;
             receivedB := receivedB + 1;
@@ -84,12 +163,16 @@ namespace mat_mul:
 
     end
 
+    /**
+     * Network entity that connects all the actors together as in the diagram shown in the top comment
+     * in this file.
+     */
     network Top() ==>:
     entities
-        sourceA = Source(R=A_ROWS,C=A_COLS_B_ROWS);
-        sourceB = Source(R=A_COLS_B_ROWS,C=B_COLS);
-        matMultiplier = MatrixMultiplier(R_A=A_ROWS, C_AandR_B=A_COLS_B_ROWS, C_B=B_COLS);
-        sink = Sink();
+        sourceA = Source(R=M,C=K);
+        sourceB = Source(R=K,C=N);
+        matMultiplier = MatrixMultiplier(R_A=M, C_AandR_B=K, C_B=N);
+        sink = Sink(R=M,C=N);
     structure
         sourceA.Out --> matMultiplier.InA;
         sourceB.Out --> matMultiplier.InB;

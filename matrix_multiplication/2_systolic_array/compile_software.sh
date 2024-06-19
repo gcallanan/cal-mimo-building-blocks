@@ -1,3 +1,5 @@
+echo "Compiling systolic array matrix multiplication network to C++ and executing it"
+
 set -e
 
 current_date_time="`date +%Y-%m-%dT%H:%M:%S`";
@@ -10,7 +12,7 @@ streamblocks multicore --set experimental-network-elaboration=on --set reduction
 mkdir -p  myproject/build/
 cd myproject/build/
 cmake ..
-time cmake --build . -j48
+time cmake --build . -j24
 
 cd ../bin
 ./Top

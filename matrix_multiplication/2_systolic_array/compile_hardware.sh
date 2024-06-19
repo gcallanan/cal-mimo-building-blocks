@@ -1,3 +1,5 @@
+echo "Compiling systolic array matrix multiplication network to HDL"
+
 set -e
 
 current_date_time="`date +%Y-%m-%dT%H:%M:%S`";
