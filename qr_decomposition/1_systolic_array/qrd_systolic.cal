@@ -1,10 +1,79 @@
 namespace qrd:
-    // NOTE: joiner is a bit over the top
-    // NOTE: SQRT does not work very well on hardware
-    // NOTE: Remember to pull system stuff sqrt for example
-    // Based on: https://doi.org/10.1117/12.932507 with extensions to allow Q matrix to be produced
-    // @author Gareth Callanan
+    /**
+     * A parametric systolic array implementation of QR decomposition using the Givens Rotations
+     * method. A KxK matrix A is decomposed into Q and R where R is an upper right triangular
+     * matrix and Q is a unitary matrix.
+     *
+     * @author Gareth Callanan
+     *
+     * This closely follows the implementation described in:
+     * Gentleman, W. Morven, and H. T. Kung. "Matrix triangularization by systolic arrays."
+     * Real-time signal processing IV. Vol. 298. SPIE, 1982. (https://doi.org/10.1117/12.932507).
+     * This implementation is described as triangluar systolic array of connected processing elements
+     * boundary PEs (B) and internal PEs (I).
+     *
+     * The array looks as follows for a 4x4 array example. > and v indicate direction of data flow:
+     *         v   v   v   v
+     *         B > I > I > I
+     *             v   v   v
+     *             B > I > I
+     *                 v   v
+     *                 B > I
+     *                     v
+     *                     B
+     *
+     * The input matrix array (A) is fed into the top of the systolic array. With each column
+     * being sent to a different column in the array:
+     *
+     *        |a_31 a_32 a_33|
+     *        |a_21 a_22 a_23|
+     *        |a_11 a_12 a_13|
+     *           v    v    v
+     *           B >  I  > I
+     *                v    v
+     *                B  > I
+     *                     v
+     *                     B
+     *
+     * Each B and I PE calculates the value of a single element in R
+     * corresponding to their position in the array. So element B_ij calclates R-ij. Calculating
+     * this value requires all of A to be fed into the array and processed. So each PE will need
+     * execute K actions to calculate its element of R. Each row has a joiner actor that collects
+     * all the elements in the row R and reasembles the matrix. We do not process the rows further,
+     * we just print them out as this is a proof of concept.
+     *
+     * The above paper describes how to get the R matrix but not the Q matrix. How to do this is
+     * vaguely covered in other papers. Basically to generate Q, extend the triangluar array
+     * with a KxK square array of the I processing elements and feed the identity matrix into it.
+     * These are the same I elements used everywhere. The array looks as follows:
+     *        |a_31 a_32 a_33| |0   0   1|
+     *        |a_21 a_22 a_23| |0   1   0|
+     *        |a_11 a_12 a_13| |1   0   0|
+     *           v    v    v    v   v   v
+     *           B >  I  > I  > I > I > I
+     *                v    v    v   v   v
+     *                B  > I  > I > I > I
+     *                     v    v   v   v
+     *                     B  > I > I > I
+     *
+     * Each I PE in the square portion of the array calculates one element in the Q matrix. However
+     * it is transposed. So element I_ij calculates Q_ji. We use also use joiners to collect the Q
+     * array but we collect them per column to undo the transpose.
+     *
+     * Here are a couple of extra notes:
+     * 1. The boundary actors contain lots of square root and division operations making them
+     *    very complex. They generally make up a large portion of the critical path.
+     * 2. Square roots are hard to do in hardware. Additionally this implementation also
+     *    uses floating points. This means that a hardware implementation is hard.
+     * 3. This implementation makes use of the System.math.sqrt function. Make sure that you
+     *    have pulled the streamblocks examples so that you can include the system package:
+     *    "git pull https://github.com/streamblocks/streamblocks-examples.git". The
+     *    compile_hardware.sh and compile_software assume that you have pulled this repo and it
+     *    is in this directory.
+     *
+     */
 
+    // Gives us access to the square root function.
     import System.math.sqrt;
 
     // The size of the input square matrix
@@ -23,10 +92,10 @@ namespace qrd:
     // present in order to fire.
     uint filter_buffer_size = buffer_size + K;
 
-    // The number of matrices that the SourceA and SourceB actors will generate.
+    // The number of matrices that the Source actors will generate.
     uint num_matrices=3;
 
-
+    // mention why r is output every step - maintain single action SDF properties
     actor InnerCell(uint K) float x_in, float c_in, float s_in ==> float x_out, float c_out, float s_out, float r_out:
         float r := 0;
         uint count := 0;
@@ -40,7 +109,6 @@ namespace qrd:
                 r := 0;
             end
 
-            //println("Inner Cell Fired");
             x_out := -s*r + c*x_in;
             r := c*r+s*x_in;
 
@@ -61,12 +129,11 @@ namespace qrd:
             float s,
             float sqrt_result
         do
-            //println("Boundary Cell Fired");
             if count = 0 then
                 r := 0;
             end
             
-            // Its better to treat very small values as zero.
+            // Its better to treat very small values as zero to prvent division issues.
             if x_in < 0.00001 and x_in > -0.00001 then
                 c := 1;
                 s := 0;
@@ -85,28 +152,30 @@ namespace qrd:
     end
 
     /**
-     * Actor that generates sample source matrix B of size K*K. 
+     * Actor that generates sample source matrix A of size K*K.
      *
-     * The values in the array are the natural numbers starting from zero
-     * incrementing by one first along a row and then along the column. Each 
-     * *column* is output on a differet port. For example in a 2x3 array:
+     * The values in the array multiples of 0.11 incrementing along a row. This was a
+     * very arbitrary choice. The values are also always < 1, so if the multiple goes
+     * above 1, only the fraction is kept. Each *column* is output on a different port
+     * as this is how the systolic array expects to see it. For example in a 3x3 array:
      *
-     * Generated B:
-     *        0 1 2      
-     *        2 3 5
+     * Generated A:
+     *        0.11 0.22 0.33
+     *        0.44 0.55 0.66
+     *        0.77 0.88 0.99
+     * (the next element would have been 0.1 (0.99+0.11-1) in a larger matrix)
      *          
      * Port output:
-     *     Out[0]: 0 2
-     *     Out[1]: 1 3
-     *     Out[2]: 2 5
+     *     Out[0]: 0.11 0.44 0.77
+     *     Out[1]: 0.22 0.55 0.88
+     *     Out[2]: 0.33 0.66 0.99
      *
      * This matrix is produced "num_matrices" times
      *
-     * @parameter  R - the number of rows in the matrix
-     * @paramter   C - the number of columns in the matrix.
-     * @outputport Out[C] - An array of ports that matrix B is output on.
-     *                       Each column of the matrix is output on a different
-     *                       port in the port array.
+     * @parameter  K - the number of rows and columns in the square matrix A.
+     * @outputport Out[K] - An array of ports that matrix BA is output on.
+     *                      Each column of the matrix is output on a different
+     *                      port in the port array.
      */
     actor Source(uint K) ==> float Out[K]:
         int rowsOut := 0;
@@ -127,7 +196,6 @@ namespace qrd:
                     next := next - 1;
                 end
             end
-            //println("");
             rowsOut := rowsOut + 1;
             
             if(rowsOut = K) then
@@ -192,14 +260,20 @@ namespace qrd:
     end
 
     /**
-     * A fi
+     * The inner and boundary PEs output their internal state every
+     * calculation, however only after K computations is that state equal
+     * to the value of Q and R matrices. This filter receives those state
+     * variables (1 filter per PE) and discards the first K-1 elements forwading
+     * the final one onwards as only that one is relevant.
      *
-     * @parameter  R - the number of rows in the matrix
-     * @paramter   C - the number of columns in the matrix.
-     * @outputport Out[R*C] - An array of ports that matrix C is received from.
-     *                        Each processing element calculates a different
-     *                        element in C and sends it to the collector on a 
-     *                        different port.
+     * This filter is written in such a way as to presserve SDF properties.
+     * It has a single action with fixed production and consumption rates.
+     *
+     * @parameter  num_tokens_to_filter - The number of tokens to collect of
+     *                                    which only the last one will be kept.
+     *                                    (usually set to K).
+     * @outputport In - Port receiving tokens from the PE
+     * @outputport Out - Port outputing the remaining token after discarding the rest.
      */
     actor Filter(uint num_tokens_to_filter) float In ==> float Out:
         action In:[in_tokens] repeat num_tokens_to_filter ==> Out:[in_tokens[num_tokens_to_filter-1]] end
@@ -210,44 +284,46 @@ namespace qrd:
      * to prevent the buffers filling up and the pipelining stalling. I do not know if these are 
      * actually necessary in all cases but some CAL backends we test with are not so mature
      * so maybe its best to have them here just in case.
+     *
+     * @parameter  index - Not used for anything, just a workaround for a compiler bug.
+     * @inputport  In - A port that takes consumes any tokens in the buffer immediatly.
      */ 
     actor Cap(uint index) int In ==>:
         receive: action In:[t] ==> end
     end
 
 
-
-    /*network Top() ==>:
-    entities
-        source = Source(K=K);
-        sourcePrinter = SourcePrinter(K=K);
-    structure
-        foreach uint i in 0..K-1 do
-            source.Out[i] --> sourcePrinter.In[i];
-        end
-    end*/
-
-    /**      0 1 2 3
-     *    0  B I I I I I I I
-     *    1    B I I I I I I
-     *    2      B I I I I I
-     *    3        B I I I I
+     /**
+     * Top network connecting all the above actors into a systolic array
+     * as described in the top comment of this file.
+     *
+     * The network has a source actor "source" generating the input matrix A. It
+     * also has "iGenerator" actors generating the I matrix required to calculate
+     * the Q matrix.
+     *
+     * These A and I matrices are fed into the Inner and Boundary PE actors making up
+     * the core processing portion of the algorithm.
+     *
+     * The network also has a joiner actors with attached filters to
+     * collect and output the Q and R matrices as the individual elements
+     * are scattered around the Inner and Boundary actors
      */
     network Top() ==>:
     var 
         function getInnerCellIndex(int row_index, int col_index) --> int : 
             (K*(K-1)/2) - (K-row_index)*((K-row_index)-1)/2 + col_index - row_index - 1 end
     entities
-        // Actors that generate input data
+        // Input Actors: Actors that generate input data
         source = Source(K=K);
         iGenerator=[IGenerator(col_index=index, K=K): for index in 0..K-1];
         
-        // Actors that perform the actual QR decomposition
+        // Processing Actors: Actors that perform the actual QR decomposition
         boundaryCells=[BoundaryCell(K=K): for index in 0..K-1];
         innerCells_r=[InnerCell(K=K): for index in 0..(K-1)*(K)/2-1];
         innerCells_q=[InnerCell(K=K): for index in 0..(K)*(K)-1];
         
-        // Actor that assemble the Q and R matrices produced from the boundary and inner cells
+        // Output Actors: Actors that assemble the Q and R matrices produced from the boundary and
+        // inner cells for printing out.
         filters_r_boundary = [Filter(num_tokens_to_filter=K): for index in 0..K-1];
         filters_r_inner = [Filter(num_tokens_to_filter=K): for index in 0..(K-1)*(K)/2-1];
         filters_q = [Filter(num_tokens_to_filter=K): for index in 0..(K)*(K)-1 ];
@@ -263,6 +339,7 @@ namespace qrd:
         foreach uint r in 0..K-1 do // Iterate along rows in triangle
             foreach uint c in r..K-1 do // Iterate along columns in the triangle
 
+                // 1.1 Connect the source actor to the network
                 if r=0 && c=0 then
                     source.Out[0] --> boundaryCells[0].x_in {bufferSize = source_buffer_size;};
                 end
@@ -271,7 +348,7 @@ namespace qrd:
                     source.Out[c] --> innerCells_r[c-1].x_in {bufferSize = source_buffer_size;};
                 end
 
-                // Connect c_in,s_in to c_out,s_out along each innerCell
+                // 1.2 Connect all the inner cell output ports to their respective input ports
                 if c > r then
                     if c = K-1 then
                         innerCells_r[getInnerCellIndex(r,c)].c_out --> innerCells_q[r*K].c_in {bufferSize = buffer_size;};
@@ -291,7 +368,7 @@ namespace qrd:
                     filters_r_inner[getInnerCellIndex(r,c)].Out --> joinersPerRow_r[r].r_in[c-r] {bufferSize = buffer_size;};
                 end
 
-                // Connect boundry cells c_out and s_out
+                // 1.3 Connect all the boundary cell output ports to their respective input ports
                 if r = c then
                     if(r = K - 1) then // The last boundary in the chain
                         boundaryCells[r].c_out --> innerCells_q[r*K].c_in {bufferSize = buffer_size;};
@@ -333,8 +410,7 @@ namespace qrd:
                 end
 
                 // 2.4 Connect the generated Q matrix values to the joiner. The generated matrix is
-                // Q^T, so we connect each column to each joiner row to transpose backward
-                
+                // Q^T, so we connect each column to each joiner row to transpose back to Q
                 innerCells_q[r*K + c].r_out --> filters_q[r*K + c].In {bufferSize = filter_buffer_size;}; 
                 filters_q[r*K + c].Out --> joinersPerRow_q[c].r_in[r] {bufferSize = buffer_size;};
             end
