@@ -1,8 +1,7 @@
 namespace qrd:
-    // NOTE: Cannot get the Q out
     // NOTE: joiner is a bit over the top
     // NOTE: SQRT does not work very well on hardware
-    // NOTE: Remember to pull system stuff
+    // NOTE: Remember to pull system stuff sqrt for example
     // Based on: https://doi.org/10.1117/12.932507
 
     import System.math.sqrt;
@@ -11,7 +10,7 @@ namespace qrd:
     uint K = 3;
 
     // The maximum number of tokens that can be stored in the FIFOS between actors.
-    uint buffer_size=3; 
+    uint buffer_size=3;
 
     // The size of the joiner buffers. They need to be large enough to store K values in the worst
     // case to prevent stalling. This is because each joiner requires data from all elements in
@@ -21,7 +20,7 @@ namespace qrd:
     uint joiner_buffer_size = K+buffer_size;
 
     // The number of matrices that the SourceA and SourceB actors will generate.
-    uint num_matrices=2;
+    uint num_matrices=3;
 
     /**
      * Actor that generates sample source matrix B of size K*K. 
@@ -77,7 +76,7 @@ namespace qrd:
         end
     end
 
-    actor InnerCell(uint K) float x_in, float c_in, float s_in ==> float x_out, float c_out, float s_out, float r_out:
+    actor InnerCell(uint K, uint toPrint) float x_in, float c_in, float s_in ==> float x_out, float c_out, float s_out, float r_out:
         float r := 0;
         uint count := 0;
         
@@ -97,6 +96,9 @@ namespace qrd:
             count := count + 1;
             if count = K then
                 count := 0;
+                if toPrint = 1 then
+                    println("" + r);
+                end
             end
         end
     end
@@ -133,7 +135,29 @@ namespace qrd:
         end
     end
 
-    actor JoinerRow(uint K, uint row_index, uint ports_in_row) float r_in[K] ==>:
+    actor IGenerator(uint col_index, uint K) ==> float Out:
+        uint row_index := 0;
+        uint total_rows := 0;
+
+        action ==> Out:[outVal]
+        guard
+            total_rows < K*num_matrices
+        var
+            float outVal := 0
+        do
+            if(row_index = col_index) then
+                outVal := 1;
+            end
+            
+            //println("" + row_index + "," + col_index + ":" + outVal);
+
+            row_index := (row_index + 1) mod K;
+            total_rows := total_rows + 1;
+        end
+
+    end
+
+    actor JoinerRowR(uint K, uint row_index, uint ports_in_row) float r_in[K] ==>:
         uint count := 0;
 
         action r_in[0..ports_in_row-1]:[input] ==>
@@ -141,13 +165,31 @@ namespace qrd:
             count := count + 1;
             
             if count = K then
-                print("row " + row_index + ": ");
+                print("R: row " + row_index + ": ");
                 if(row_index != 0) then
                     foreach uint index in 0..(K-ports_in_row)-1 do
                         print("0 ");
                     end
                 end
                 foreach uint index in 0..ports_in_row-1 do
+                    print("" + input[index] + " ");
+                end
+                println("");
+                count := 0;
+            end
+        end
+    end
+
+    actor JoinerRowQ(uint K, uint row_index) float r_in[K] ==>:
+        uint count := 0;
+
+        action r_in[0..K-1]:[input] ==>
+        do
+            count := count + 1;
+            
+            if count = K then
+                print("Q: row " + row_index + ": ");
+                foreach uint index in 0..K-1 do
                     print("" + input[index] + " ");
                 end
                 println("");
@@ -176,6 +218,7 @@ namespace qrd:
         end
     end
 
+
     /*network Top() ==>:
     entities
         source = Source(K=K);
@@ -187,10 +230,10 @@ namespace qrd:
     end*/
 
     /**      0 1 2 3
-     *    0  B I I I
-     *    1    B I I
-     *    2      B I
-     *    3        B
+     *    0  B I I I I I I I
+     *    1    B I I I I I I
+     *    2      B I I I I I
+     *    3        B I I I I
      */
     network Top() ==>:
     var 
@@ -198,56 +241,91 @@ namespace qrd:
             (K*(K-1)/2) - (K-row_index)*((K-row_index)-1)/2 + col_index - row_index - 1 end
     entities
         source = Source(K=K);
+        iGenerator=[IGenerator(col_index=index, K=K): for index in 0..K-1];
         caps_s=[Cap(index=0): for index in 0..K-1];
         caps_c=[Cap(index=0): for index in 0..K-1];
+        caps_x=[Cap(index=0): for index in 0..K-1];
         boundaryCells=[BoundaryCell(K=K): for index in 0..K-1];
-        joinersPerRow=[JoinerRow(K=K, row_index=index, ports_in_row=(K-index)): for index in 0..K-1];
-        innerCells=[InnerCell(K=K): for index in 0..(K-1)*(K)/2-1];
+        joinersPerRow_r=[JoinerRowR(K=K, row_index=index, ports_in_row=(K-index)): for index in 0..K-1];
+        joinersPerRow_q=[JoinerRowQ(K=K, row_index=index): for index in 0..K-1];
+        innerCells_r=[InnerCell(K=K, toPrint=0): for index in 0..(K-1)*(K)/2-1];
+        innerCells_q=[InnerCell(K=K, toPrint=0): for index in 0..(K)*(K)-1];
     structure
         
-        foreach uint r in 0..K-1 do
-            foreach uint c in r..K-1 do
+        // 1. Connect the triangular part of the array
+        foreach uint r in 0..K-1 do // Iterate along rows in triangle
+            foreach uint c in r..K-1 do // Iterate along columns in the triangle
 
                 if r=0 && c=0 then
-                    source.Out[0] --> boundaryCells[0].x_in;
+                    source.Out[0] --> boundaryCells[0].x_in {bufferSize = buffer_size;};
                 end
 
                 if r=0 && c!=0 then
-                    source.Out[c] --> innerCells[c-1].x_in;
+                    source.Out[c] --> innerCells_r[c-1].x_in {bufferSize = buffer_size;};
                 end
 
                 // Connect c_in,s_in to c_out,s_out along each innerCell
                 if c > r then
                     if c = K-1 then
-                        innerCells[getInnerCellIndex(r,c)].c_out --> caps_c[r].In {bufferSize = buffer_size;};
-                        innerCells[getInnerCellIndex(r,c)].s_out --> caps_s[r].In {bufferSize = buffer_size;};
+                        innerCells_r[getInnerCellIndex(r,c)].c_out --> innerCells_q[r*K].c_in {bufferSize = buffer_size;};
+                        innerCells_r[getInnerCellIndex(r,c)].s_out --> innerCells_q[r*K].s_in {bufferSize = buffer_size;};
                     else
-                        innerCells[getInnerCellIndex(r,c)].c_out --> innerCells[getInnerCellIndex(r,c+1)].c_in {bufferSize = buffer_size;};
-                        innerCells[getInnerCellIndex(r,c)].s_out --> innerCells[getInnerCellIndex(r,c+1)].s_in {bufferSize = buffer_size;};
+                        innerCells_r[getInnerCellIndex(r,c)].c_out --> innerCells_r[getInnerCellIndex(r,c+1)].c_in {bufferSize = buffer_size;};
+                        innerCells_r[getInnerCellIndex(r,c)].s_out --> innerCells_r[getInnerCellIndex(r,c+1)].s_in {bufferSize = buffer_size;};
                     end
 
                     if c = r+1 then
-                        innerCells[getInnerCellIndex(r,c)].x_out --> boundaryCells[r+1].x_in {bufferSize = buffer_size;};
+                        innerCells_r[getInnerCellIndex(r,c)].x_out --> boundaryCells[r+1].x_in {bufferSize = buffer_size;};
                     else
-                        innerCells[getInnerCellIndex(r,c)].x_out --> innerCells[getInnerCellIndex(r+1,c)].x_in {bufferSize = buffer_size;};
+                        innerCells_r[getInnerCellIndex(r,c)].x_out --> innerCells_r[getInnerCellIndex(r+1,c)].x_in {bufferSize = buffer_size;};
                     end
 
-                    innerCells[getInnerCellIndex(r,c)].r_out --> joinersPerRow[r].r_in[c-r] {bufferSize = joiner_buffer_size;};
+                    innerCells_r[getInnerCellIndex(r,c)].r_out --> joinersPerRow_r[r].r_in[c-r] {bufferSize = joiner_buffer_size;};
                 end
 
                 // Connect boundry cells c_out and s_out
                 if r = c then
                     if(r = K - 1) then // The last boundary in the chain
-                        boundaryCells[r].c_out --> caps_c[r].In {bufferSize = buffer_size;};
-                        boundaryCells[r].s_out --> caps_s[r].In {bufferSize = buffer_size;};
+                        boundaryCells[r].c_out --> innerCells_q[r*K].c_in {bufferSize = buffer_size;};
+                        boundaryCells[r].s_out --> innerCells_q[r*K].s_in {bufferSize = buffer_size;};
                     else
-                        boundaryCells[r].c_out --> innerCells[getInnerCellIndex(r,c+1)].c_in {bufferSize = buffer_size;};
-                        boundaryCells[r].s_out --> innerCells[getInnerCellIndex(r,c+1)].s_in {bufferSize = buffer_size;};
+                        boundaryCells[r].c_out --> innerCells_r[getInnerCellIndex(r,c+1)].c_in {bufferSize = buffer_size;};
+                        boundaryCells[r].s_out --> innerCells_r[getInnerCellIndex(r,c+1)].s_in {bufferSize = buffer_size;};
                     end
 
-                    boundaryCells[r].r_out --> joinersPerRow[r].r_in[0] {bufferSize = joiner_buffer_size;};
+                    boundaryCells[r].r_out --> joinersPerRow_r[r].r_in[0] {bufferSize = joiner_buffer_size;};
                 end
 
+            end
+        end
+
+        // 2. Connect the square part of the array
+        foreach uint r in 0..K-1 do // Iterate along rows in the square
+            foreach uint c in 0..K-1 do // Iterate along columns in the square
+                // 2.1  Connect iGenerator to the array
+                if r = 0 then
+                    iGenerator[c].Out --> innerCells_q[r*K + c].x_in {bufferSize = buffer_size;};
+                end
+                
+                // 2.2 Connect the actors in a column together
+                if r = K-1 then
+                    innerCells_q[r*K + c].x_out --> caps_x[c].In {bufferSize = buffer_size;};
+                else
+                    innerCells_q[r*K + c].x_out --> innerCells_q[(r+1)*K + c].x_in {bufferSize = buffer_size;};
+                end
+ 
+                // 2.3 Connect all actors in a row together
+                if(c = K-1) then
+                    innerCells_q[r*K + c].c_out --> caps_c[r].In {bufferSize = buffer_size;};
+                    innerCells_q[r*K + c].s_out --> caps_s[r].In {bufferSize = buffer_size;};
+                else
+                    innerCells_q[r*K + c].c_out --> innerCells_q[r*K + c + 1].c_in {bufferSize = buffer_size;};
+                    innerCells_q[r*K + c].s_out --> innerCells_q[r*K + c + 1].s_in {bufferSize = buffer_size;};
+                end
+
+                // 2.4 Connect the generated Q matrix values to the joiner. The generated matrix is
+                // Q^T, so we connect each column to each joiner row to transpose backward
+                innerCells_q[r*K + c].r_out --> joinersPerRow_q[c].r_in[r];
             end
         end
     end
