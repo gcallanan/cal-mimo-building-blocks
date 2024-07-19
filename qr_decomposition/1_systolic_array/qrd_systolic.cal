@@ -2,7 +2,8 @@ namespace qrd:
     // NOTE: joiner is a bit over the top
     // NOTE: SQRT does not work very well on hardware
     // NOTE: Remember to pull system stuff sqrt for example
-    // Based on: https://doi.org/10.1117/12.932507
+    // Based on: https://doi.org/10.1117/12.932507 with extensions to allow Q matrix to be produced
+    // @author Gareth Callanan
 
     import System.math.sqrt;
 
@@ -118,7 +119,8 @@ namespace qrd:
                 r := 0;
             end
             
-            if x_in = 0 then
+            // Its better to treat very small values as zero.
+            if x_in < 0.00001 and x_in > -0.00001 then
                 c := 1;
                 s := 0;
             else
@@ -149,52 +151,42 @@ namespace qrd:
                 outVal := 1;
             end
             
-            //println("" + row_index + "," + col_index + ":" + outVal);
-
             row_index := (row_index + 1) mod K;
             total_rows := total_rows + 1;
         end
 
     end
 
-    actor JoinerRowR(uint K, uint row_index, uint ports_in_row) float r_in[K] ==>:
-        uint count := 0;
+    actor JoinerRowR(uint K, uint row_index, uint ports_in_row) float r_in[ports_in_row] ==>:
+        uint matrix_number := 0;
 
         action r_in[0..ports_in_row-1]:[input] ==>
         do
-            count := count + 1;
-            
-            if count = K then
-                print("R: row " + row_index + ": ");
-                if(row_index != 0) then
-                    foreach uint index in 0..(K-ports_in_row)-1 do
-                        print("0 ");
-                    end
+            print("R"+matrix_number+": row " + row_index + ": ");
+            if(row_index != 0) then
+                foreach uint index in 0..(K-ports_in_row)-1 do
+                    print("0 ");
                 end
-                foreach uint index in 0..ports_in_row-1 do
-                    print("" + input[index] + " ");
-                end
-                println("");
-                count := 0;
             end
+            foreach uint index in 0..ports_in_row-1 do
+                print("" + input[index] + " ");
+            end
+            println("");
+            matrix_number := matrix_number + 1;
         end
     end
 
     actor JoinerRowQ(uint K, uint row_index) float r_in[K] ==>:
-        uint count := 0;
+        uint matrix_number := 0;
 
         action r_in[0..K-1]:[input] ==>
         do
-            count := count + 1;
-            
-            if count = K then
-                print("Q: row " + row_index + ": ");
-                foreach uint index in 0..K-1 do
-                    print("" + input[index] + " ");
-                end
-                println("");
-                count := 0;
+            print("Q"+matrix_number+": row " + row_index + ": ");
+            foreach uint index in 0..K-1 do
+                print("" + input[index] + " ");
             end
+            println("");
+            matrix_number := matrix_number + 1;
         end
     end
 
@@ -216,6 +208,10 @@ namespace qrd:
         do
             //println("" + index + ":" + t);
         end
+    end
+
+    actor Filter(uint num_to_filter) float In ==> float Out:
+        action In:[in_tokens] repeat num_to_filter ==> Out:[in_tokens[num_to_filter-1]] end
     end
 
 
@@ -240,16 +236,28 @@ namespace qrd:
         function getInnerCellIndex(int row_index, int col_index) --> int : 
             (K*(K-1)/2) - (K-row_index)*((K-row_index)-1)/2 + col_index - row_index - 1 end
     entities
+        // Actors that generate input data
         source = Source(K=K);
         iGenerator=[IGenerator(col_index=index, K=K): for index in 0..K-1];
-        caps_s=[Cap(index=0): for index in 0..K-1];
-        caps_c=[Cap(index=0): for index in 0..K-1];
-        caps_x=[Cap(index=0): for index in 0..K-1];
+        
+        // Actors that perform the actual QR decomposition
         boundaryCells=[BoundaryCell(K=K): for index in 0..K-1];
-        joinersPerRow_r=[JoinerRowR(K=K, row_index=index, ports_in_row=(K-index)): for index in 0..K-1];
-        joinersPerRow_q=[JoinerRowQ(K=K, row_index=index): for index in 0..K-1];
         innerCells_r=[InnerCell(K=K, toPrint=0): for index in 0..(K-1)*(K)/2-1];
         innerCells_q=[InnerCell(K=K, toPrint=0): for index in 0..(K)*(K)-1];
+        
+        // Actor that assemble the Q and R matrices produced from the boundary and inner cells
+        filters_r_boundary = [Filter(num_to_filter=K): for index in 0..K-1];
+        filters_r_inner = [Filter(num_to_filter=K): for index in 0..(K-1)*(K)/2-1];
+        filters_q = [Filter(num_to_filter=K): for index in 0..(K)*(K)-1 ];
+        joinersPerRow_r=[JoinerRowR(K=K, row_index=index, ports_in_row=(K-index)): for index in 0..K-1];
+        joinersPerRow_q=[JoinerRowQ(K=K, row_index=index): for index in 0..K-1];
+
+        // Actors that cap unused ports, consuming tokens from the FIFO to prevent the buffers
+        // filling up. I do not know if these are actually necessary. But some CAL backends are not
+        // so mature - so I think its best not 
+        caps_s=[Cap(index=0): for index in 0..K-1];
+        caps_c=[Cap(index=0): for index in 0..K-1];
+        caps_x=[Cap(index=0): for index in 0..K-1];    
     structure
         
         // 1. Connect the triangular part of the array
@@ -280,7 +288,8 @@ namespace qrd:
                         innerCells_r[getInnerCellIndex(r,c)].x_out --> innerCells_r[getInnerCellIndex(r+1,c)].x_in {bufferSize = buffer_size;};
                     end
 
-                    innerCells_r[getInnerCellIndex(r,c)].r_out --> joinersPerRow_r[r].r_in[c-r] {bufferSize = joiner_buffer_size;};
+                    innerCells_r[getInnerCellIndex(r,c)].r_out --> filters_r_inner[getInnerCellIndex(r,c)].In {bufferSize = joiner_buffer_size;};
+                    filters_r_inner[getInnerCellIndex(r,c)].Out --> joinersPerRow_r[r].r_in[c-r] {bufferSize = joiner_buffer_size;};
                 end
 
                 // Connect boundry cells c_out and s_out
@@ -293,7 +302,8 @@ namespace qrd:
                         boundaryCells[r].s_out --> innerCells_r[getInnerCellIndex(r,c+1)].s_in {bufferSize = buffer_size;};
                     end
 
-                    boundaryCells[r].r_out --> joinersPerRow_r[r].r_in[0] {bufferSize = joiner_buffer_size;};
+                    boundaryCells[r].r_out --> filters_r_boundary[r].In {bufferSize = joiner_buffer_size;};
+                    filters_r_boundary[r].Out --> joinersPerRow_r[r].r_in[0] {bufferSize = joiner_buffer_size;};
                 end
 
             end
@@ -325,7 +335,8 @@ namespace qrd:
 
                 // 2.4 Connect the generated Q matrix values to the joiner. The generated matrix is
                 // Q^T, so we connect each column to each joiner row to transpose backward
-                innerCells_q[r*K + c].r_out --> joinersPerRow_q[c].r_in[r];
+                innerCells_q[r*K + c].r_out --> filters_q[r*K + c].In {bufferSize = buffer_size;}; 
+                filters_q[r*K + c].Out --> joinersPerRow_q[c].r_in[r] {bufferSize = buffer_size;};
             end
         end
     end
