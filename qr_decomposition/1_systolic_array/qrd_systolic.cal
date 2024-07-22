@@ -95,7 +95,38 @@ namespace qrd:
     // The number of matrices that the Source actors will generate.
     uint num_matrices=3;
 
-    // mention why r is output every step - maintain single action SDF properties
+    /**
+     * Inner Cell PE of the systolic array (often just refered to as the I PE).
+     *
+     * The Inner cell contains a state variable R, after K firings (A is a KxK matrix), the variable
+     * R is equal to the value of a single element in the Q or R matrix (more detail in the top
+     * comment).
+     *
+     * The I PE can be visualized as follows:
+     *                                                     State Variable: r = 0 (initial value)
+     *                   x_in
+     *                    v                                Equations applied each firing:
+     *           s_in > | I | > s_out                          x_out = - s_in * r + c_in * x_in
+     *           c_in > | PE| > c_out                          r = c_in * r + s_in * x_in
+     *                    v  \                                 r_out = r;
+     *                  x_out \                                c_out = c_in;
+     *                         v                               s_out = s_in;
+     *                       r_out
+     *
+     * NOTE: Every action, results in r being output, however, r is only valid on the Kth action.
+     * We output this every action to preserve the single-action SDF properties of the actor.
+     * Later actors filter the tokens from this port so only every Kth token is used.
+     *
+     * @parameter  K - the number of rows and columns in the square matrix A.
+     * @inputport  x_in - Input port connected to above element in systolic array.
+     * @inputport  c_in - Input port for c value from element to the left in systolic array.
+     * @inputport  s_in - Input port for s value from element to the left in systolic array.
+     * @outputport x_out - Output port connected to below element in systolic array.
+     * @outputport c_out - Output port to send c value to the element to the right in systolic array.
+     * @outputport s_out - Output port to send s value to the element to the right in systolic array.
+     * @outputport r_out - Output port to send the state variable r out. Is sent to filter and joiner
+     *                     actors that are not part of the systolic array.
+     */
     actor InnerCell(uint K) float x_in, float c_in, float s_in ==> float x_out, float c_out, float s_out, float r_out:
         float r := 0;
         uint count := 0;
@@ -105,13 +136,16 @@ namespace qrd:
         var 
             float x_out
         do
+            // Reset R after K firings
             if count = 0 then
                 r := 0;
             end
 
+            // Equations
             x_out := -s*r + c*x_in;
             r := c*r+s*x_in;
 
+            // Additional part of reset logic
             count := count + 1;
             if count = K then
                 count := 0;
@@ -119,6 +153,34 @@ namespace qrd:
         end
     end
 
+    /**
+     * Boundary Cell PE of the systolic array (often just refered to as the B PE).
+     *
+     * The Boundary cell contains a state variable R, after K firings (A is a KxK matrix), the variable
+     * R is equal to the value of a single element in the R matrix (more detail in the top
+     * comment).
+     *
+     * The I PE can be visualized as follows:
+     *                                              State Variable: r = 0 (initial value)
+     *            x_in
+     *             v                                Equations applied each firing:
+     *           | I | > s_out                          c_out = r/sqrt(r^2 + x_in^2)
+     *           | PE| > c_out                          s_out = x_in/sqrt(r^2 + x_in^2)
+     *              \                                   r = sqrt(r^2 + x_in^2)
+     *               v                                  r_out = r;
+     *              r_out
+     *
+     * NOTE: Every action, results in r being output, however, r is only valid on the Kth action.
+     * We output this every action to preserve the single-action SDF properties of the actor.
+     * Later actors filter the tokens from this port so only every Kth token is used.
+     *
+     * @parameter  K - the number of rows and columns in the square matrix A.
+     * @inputport  x_in - Input port connected to above element in systolic array.
+     * @outputport c_out - Output port to send c value to the element to the right in systolic array.
+     * @outputport s_out - Output port to send s value to the element to the right in systolic array.
+     * @outputport r_out - Output port to send the state variable r out. Is sent to filter and joiner
+     *                     actors that are not part of the systolic array.
+     */
     actor BoundaryCell(uint K) float x_in ==> float c_out, float s_out, float r_out:
         float r := 0;
         uint count := 0;
@@ -133,8 +195,8 @@ namespace qrd:
                 r := 0;
             end
             
-            // Its better to treat very small values as zero to prvent division issues.
-            if x_in < 0.00001 and x_in > -0.00001 then
+            // Its better to treat very small values as zero to prevent division issues.
+            if x_in < 0.0001 and x_in > -0.0001 then
                 c := 1;
                 s := 0;
             else
@@ -187,9 +249,10 @@ namespace qrd:
         var 
             List(type:float, size = K) output
         do
+            //print("A" + sentMatrices + ": row " + rowsOut + ": ");
             foreach uint index in 0..K-1 do
-                //print("" + (rowsOut * C + index) + " ");
                 output[index] := next;
+                //print("" + next + " ");
                 next := next + 0.11;
 
                 if (next >= 1) then
@@ -197,6 +260,7 @@ namespace qrd:
                 end
             end
             rowsOut := rowsOut + 1;
+            //println("");
             
             if(rowsOut = K) then
                 rowsOut := 0;
@@ -206,13 +270,35 @@ namespace qrd:
         end
     end
 
+    /**
+     * Actor that generates a column of the I matrix required as input to the square portion
+     * of the systolic array.
+     *
+     * The pattern of each column is regular and independant of the other columns in the I matrix
+     * as such we can split the generation of the I matrix into multiple actors. I suspect that this
+     * will be better for compilation to hardware as it allows the placer and router more flexibility
+     * in where it can put the different components of the I matrix generator.
+     *
+     * The I matrix generation follows along the diagram below:
+     *
+     *      Actor:         IG1 | IG2 | IG3
+     *                      v     v     v
+     *      Tokens: Time 2: 0  |  0  |  I
+     *              Time 1: 0  |  I  |  0
+     *              Time 0: I  |  0  |  0
+     *
+     * @parameter  K - the number of rows and columns in the square matrix A.
+     * @parameter  col_index - The column in the I matrix that this IGenerator generates
+     * @outputport Out - The port that outputs the generated column vector of the I matrix.
+     */
     actor IGenerator(uint col_index, uint K) ==> float Out:
         uint row_index := 0;
         uint total_rows := 0;
+        uint total_actions = K*num_matrices;
 
         action ==> Out:[outVal]
         guard
-            total_rows < K*num_matrices
+            total_rows < total_actions // Guard that limits the number of I matrices generated.
         var
             float outVal := 0
         do
@@ -226,6 +312,40 @@ namespace qrd:
 
     end
 
+    /**
+     * A joiner actor that collects the filtered output from the systolic array to produce a
+     * single row in the R matrix.
+     *
+     * This joiner just prints out the row as this is a demonstrative example. This can be modified
+     * to transmit the matrix further in future applications. There needs to exist one of these
+     * per row to collect the entire R matrix
+     *
+     * If we have the systolic array:
+     *     B I I I
+     *       B I I
+     *         B I
+     *           B
+     * The diagram below shows how a single row (row two in this case) has its output sent
+     * to the joiner:
+     *         B         I         I                    JoinerRowR
+     *         v         v         v                     actor
+     * r_out(1)| r_out(2)| r_out(3)\--->|filter|>---->| print(    |
+     *         |         \---------->|filter|>------->|   r_out(1)|
+     *         \----------------->|filter|>---------->|   r_out(2)|
+     *                                                |   r_out(3)|
+     *                                                | )         |
+     *
+     * The number of ports in the joiner changes depending on the row, as each row generating R
+     * has a dufferebt number of values.
+     *
+     * @parameter  K - the number of rows and columns in the square matrix A.
+     * @parameter  row_index - The index of the row that this joiner collects.
+     * @parameter  ports_in_row - The number of ports in the row that this joiner needs to
+     *                            collect data from (can also be calculated from K and row_index
+     *                            parameters, I was just lazy).
+     * @inputports r_in[ports_in_row] - Array of ports to collect r value from the PEs. One
+     *                                  port is required per PE in the row.
+     */
     actor JoinerRowR(uint K, uint row_index, uint ports_in_row) float r_in[ports_in_row] ==>:
         uint matrix_number := 0;
 
@@ -245,6 +365,23 @@ namespace qrd:
         end
     end
 
+    /**
+     * A joiner actor that collects the filtered output from the systolic array to produce a
+     * single row in the Q matrix.
+     *
+     * This joiner just prints out the row as this is a demonstrative example. This can be modified
+     * to transmit the matrix further in future applications. There needs to exist one of these
+     * per row to collect the entire Q matrix
+     *
+     * This operates in a manner very similar to the JoinerRowR actor. So see that actors comments
+     * for more detail. The only difference is that the number of ports is the same for every
+     * JoinerRowQ instantiated while it is different for every JoinerRowR.
+     *
+     * @parameter  K - the number of rows and columns in the square matrix A.
+     * @parameter  row_index - The index of the row that this joiner collects.
+     * @inputports r_in[ports_in_row] - Array of ports to collect r value from the PEs. One
+     *                                  port is required per PE in the row.
+     */
     actor JoinerRowQ(uint K, uint row_index) float r_in[K] ==>:
         uint matrix_number := 0;
 
