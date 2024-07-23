@@ -102,6 +102,11 @@ namespace qrd:
     // but decreases latency and throughput.
     uint num_CORDIC_iterations = 12;
 
+    // Fixed point number represented by Qm.n where m is the number of integer bits + sign bit
+    // and n is the fractional component.
+    uint m = 3;
+    uint n = 19;
+
     // ==== Modifyable Constants: End ===
 
     // The constant value that we need to multiply the results of the CORDIC algorithm by
@@ -629,4 +634,77 @@ namespace qrd:
             end
         end
     end
+
+
+    actor Temp() ==>:
+        uint run := 0;
+        receive: action ==> 
+        guard
+            run = 0
+        var
+            int(size = m+n) a11 := 115343,
+            int(size = m+n) a21 := 173015,
+            int(size = m+n) a31 := -786432,
+            int(size = m+n) addResult,
+            int(size = m+n) subResult1,
+            int(size = m+n) subResult2,
+            int(size = 2*m+2*n) mulIntermediate,
+            int(size = 2*m+2*n) divIntermediate,
+            int(size = m+n) mulResult,
+            int(size = m+n) divResult
+        do  
+            addResult := a11 + a21;
+            subResult1 := a21 - a11;
+            subResult2 := a11 - a21;
+            mulIntermediate := a11;
+            mulIntermediate := mulIntermediate*a21;
+            mulResult := mulIntermediate >> n;
+            println("Add: Result: " + addResult + " Expected: " + 288358);
+            println("Subtract 1: Result: " + subResult1 + " Expected: " + 57672);
+            println("Subtract 2: Result: " + subResult2 + " Expected: " + -57672);
+            mulIntermediate := a11;
+            mulIntermediate := mulIntermediate*a21;
+            mulResult := mulIntermediate >> n;
+            println("Multiply: Result: " + mulResult + " Expected: " + 38063);
+            
+            divIntermediate := a21;
+            divIntermediate := divIntermediate << n;
+            divResult := divIntermediate/a11;
+            println("Divide: Result: " + divResult + " Expected: " + 38063);
+            println("Done!");
+            run := 1;
+
+            printFixedPoint(a21);
+            printFixedPoint(a31);
+        end
+    end
+
+    procedure printFixedPoint(int(size = m+n) fixedPointNumber)
+    var
+        float output := 0,
+        float power2 := 1,
+        uint(size=8) bit := 0
+    begin
+        foreach uint i in 1..m-1 do
+            power2 := power2 * 2;
+        end
+
+
+        foreach uint i in 0..(m+n-1) do
+            bit := (fixedPointNumber >> (m+n-1-i));
+            bit := bit & 1;
+
+            if i = 0 then
+                println("" + i + " " + bit + " " + -power2);
+                output := output - bit * power2;
+            else
+                println("" + i + " " + bit + " " + power2);
+                output := output + bit * power2;
+            end
+            power2 := power2/2;
+        end
+        println("Final Output: " + output);
+    end
+
+
 end
