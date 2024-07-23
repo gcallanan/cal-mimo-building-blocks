@@ -1,4 +1,4 @@
-% QR Decomposition example
+﻿% QR Decomposition example
 % Decompose A into Q and R (QR=A) where
 % - R is an upper triangular matrix
 % - Q is unitary (Q^H x Q = I)
@@ -14,7 +14,7 @@ for i = 1:matrix_size
   for j = 1:matrix_size
     A(i,j) = next;
     next = next + 0.11;
-    if next > 1
+    if next >= 1
       next = next -1;
     end
   end
