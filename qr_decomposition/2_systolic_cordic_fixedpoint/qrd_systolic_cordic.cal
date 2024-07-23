@@ -4,13 +4,18 @@ namespace qrd:
      * method. A KxK matrix A is decomposed into Q and R where R is an upper right triangular
      * matrix and Q is a unitary matrix.
      *
+     * The standard Givens Rotations implementation requires many sqrt operations which are very
+     * expensive. This implementation makes use of the CORDIC method to eliminate the sqrt operation
+     *
      * @author Gareth Callanan
      *
-     * This closely follows the implementation described in:
+     * @section 1: General Outline
+     *
+     * The standard givens rotations implementation is described in:
      * Gentleman, W. Morven, and H. T. Kung. "Matrix triangularization by systolic arrays."
      * Real-time signal processing IV. Vol. 298. SPIE, 1982. (https://doi.org/10.1117/12.932507).
      * This implementation is described as triangluar systolic array of connected processing elements
-     * boundary PEs (B) and internal PEs (I).
+     * boundary PEs (B) and internal PEs (I). The structure of this closely follows
      *
      * The array looks as follows for a 4x4 array example. > and v indicate direction of data flow:
      *         v   v   v   v
@@ -60,29 +65,47 @@ namespace qrd:
      * it is transposed. So element I_ij calculates Q_ji. We use also use joiners to collect the Q
      * array but we collect them per column to undo the transpose.
      *
-     * Here are a couple of extra notes:
-     * 1. The boundary actors contain lots of square root and division operations making them
-     *    very complex. They generally make up a large portion of the critical path.
-     * 2. Square roots are hard to do in hardware. Additionally this implementation also
-     *    uses floating points. This means that a hardware implementation is hard.
-     * 3. This implementation makes use of the System.math.sqrt function. Make sure that you
-     *    have pulled the streamblocks examples so that you can include the system package:
-     *    "git pull https://github.com/streamblocks/streamblocks-examples.git". The
-     *    compile_hardware.sh and compile_software assume that you have pulled this repo and it
-     *    is in this directory.
+     * @section 2: CORDIC Rotation Method
      *
+     * The boundary actors require a sqrt algorithm implementation. This is very difficult in
+     * hardware. Instead we will apply the CORDIC algorithm to compute the sqrt function. CORDIC is
+     * an iterative method primarily for calculating trigonometric functions using only additions,
+     * multiplications and bitshifts. It has also been extended to calculate square roots in certain
+     * instances.
+     *
+     * I examined this article when implementing CORDIC:
+     * "Fixed-Point CORDIC-Based QR Decomposition by Givens Rotations on FPGA," 2011 International
+     * Conference on Reconfigurable Computing and FPGAs, Cancun, Mexico, 2011, pp. 327-332,
+     * doi: https://doi.org/10.1109/ReConFig.2011.38“
+     * This article also extends the CORDIC algorithm to the inner actors to remove all division
+     * operations. I only use CORDIC for the boundary actor which retains one division.
+     *
+     * An additional article that I though explained things well can be found here:
+     * "Zhang, Jianfeng, Paul Chow, and Hengzhu Liu. "Cordic-based enhanced systolic array
+     * architecture for qr decomposition." ACM Transactions on Reconfigurable Technology and
+     * Systems (TRETS) 9.2 (2015): 1-22. Doi: https://doi.org/10.1145/2827700"
+     * I did not implement their method, I rather just read their background.
      */
 
-    // TODO: Comment This
+    // ==== Modifyable Constants: Start ===
 
-    k_CORDIC_constant = 0.607252956441381;
-    num_CORDIC_iterations = 12;
+    // The number of matrices that the Source actors will generate.
+    uint num_matrices=3;
 
     // The size of the input square matrix
     uint K = 4;
 
     // The maximum number of tokens that can be stored in the FIFOS between actors.
     uint buffer_size= 3;
+
+    // The number of iterations of the CORDIC algorithm. More gives greater prescision
+    // but decreases latency and throughput.
+    uint num_CORDIC_iterations = 12;
+
+    // ==== Modifyable Constants: End ===
+
+    // The constant value that we need to multiply the results of the CORDIC algorithm by
+    float k_CORDIC_constant = 0.607252956441381;
 
     // The Source actor needs to feed actors in an entire row from left to right. It takes 
     // K firings from the first firing on the left before the last actor on the right fires.
@@ -93,9 +116,6 @@ namespace qrd:
     // The buffer size of the filters needs to be >K as the filter requires K tokens to be
     // present in order to fire.
     uint filter_buffer_size = buffer_size + K;
-
-    // The number of matrices that the Source actors will generate.
-    uint num_matrices=1;
 
     /**
      * Inner Cell PE of the systolic array (often just refered to as the I PE).
@@ -166,12 +186,29 @@ namespace qrd:
      * The I PE can be visualized as follows:
      *                                              State Variable: r = 0 (initial value)
      *            x_in
-     *             v                                Equations applied each firing:
+     *             v                                Standard equations applied each firing:
      *           | I | > s_out                          c_out = r/sqrt(r^2 + x_in^2)
      *           | PE| > c_out                          s_out = x_in/sqrt(r^2 + x_in^2)
      *              \                                   r = sqrt(r^2 + x_in^2)
      *               v                                  r_out = r;
      *              r_out
+     *
+     * The above equations make use of the sqrt function which can be expensive.
+     * A better method to calculate sqrt(r^2 + x_in^2) without expensive divisions
+     * is the CORDIC algorithm (sources in top comment). The algorithm
+     * is iterative and applies the following steps per each iterations:
+     *  x[j+1] = x[j] - phi[j]*2^(-j)*y[j];
+     *  y[j+1] = y[j] - phi[j]*2^(-j)*x[j];
+     * Where:
+     *  - 2^(-j) is just a power of 2 value that can be obtained by bit shifting to the right in
+     *    fixed point representation
+     *  - phi[j] is -1 if x[j]y[j]  1 or else it is 1
+     *  - y[0]=r
+     *  - x[0]=x_in
+     * This algorithm iterates "num_CORDIC_iterations" times. The number of iterations trades
+     * off throughput and latency for accuracy. After "num_CORDIC_iterations". The value of
+     * y[end] ~= 0 and x[end]~=K*sqrt(r^2 + x_in^2) where K = 1.6467602. By defining k = 1/K.
+     * We can determine sqrt = k * x[end].
      *
      * NOTE: Every action, results in r being output, however, r is only valid on the Kth action.
      * We output this every action to preserve the single-action SDF properties of the actor.
@@ -207,7 +244,7 @@ namespace qrd:
             end
             
             // If x_in is very close to zero, then we can skip all this calculation
-            if x_in < 0.0001 and x_in > -0.0001 then
+            if x_in < 0.00001 and x_in > -0.00001 then
                 c := 1;
                 s := 0;
             else
@@ -228,6 +265,9 @@ namespace qrd:
                     x_j := x_j_plus_1;
                     y_j := y_j_plus_1;
 
+                    // This would be a bitshift to the right when using fixed
+                    // point arithmatic, but we need a divide when using
+                    // floating point.
                     pow_2_val := pow_2_val/2;
                 end
 
