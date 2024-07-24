@@ -648,63 +648,90 @@ namespace qrd:
             int(size = m+n) addResult,
             int(size = m+n) subResult1,
             int(size = m+n) subResult2,
-            int(size = 2*m+2*n) mulIntermediate,
-            int(size = 2*m+2*n) divIntermediate,
             int(size = m+n) mulResult,
             int(size = m+n) divResult
         do  
             addResult := a11 + a21;
+            print("Add: Result: "); printFixedPoint(addResult); println(" Expected: 0.55");
+
             subResult1 := a21 - a11;
             subResult2 := a11 - a21;
-            mulIntermediate := a11;
-            mulIntermediate := mulIntermediate*a21;
-            mulResult := mulIntermediate >> n;
-            println("Add: Result: " + addResult + " Expected: " + 288358);
-            println("Subtract 1: Result: " + subResult1 + " Expected: " + 57672);
-            println("Subtract 2: Result: " + subResult2 + " Expected: " + -57672);
-            mulIntermediate := a11;
-            mulIntermediate := mulIntermediate*a21;
-            mulResult := mulIntermediate >> n;
-            println("Multiply: Result: " + mulResult + " Expected: " + 38063);
+            print("Subtract 1: Result: "); printFixedPoint(subResult1); println(" Expected: 0.11");
+            print("Subtract 2: Result: "); printFixedPoint(subResult2); println(" Expected: -0.11");
+
+            mulResult := fixedPointMultiply(a11, a21);
+            print("Multiply: Result: "); printFixedPoint(mulResult); println(" Expected: 0.0726");
             
-            divIntermediate := a21;
-            divIntermediate := divIntermediate << n;
-            divResult := divIntermediate/a11;
-            println("Divide: Result: " + divResult + " Expected: " + 38063);
+            divResult := fixedPointDivide(a21, a11);
+            print("Divide 1: Result: "); printFixedPoint(divResult); println(" Expected: 1.5");
+            divResult := fixedPointDivide(a11, a21);
+            print("Divide 2: Result: "); printFixedPoint(divResult); println(" Expected: 0.666666");
             println("Done!");
             run := 1;
-
-            printFixedPoint(a21);
-            printFixedPoint(a31);
         end
     end
 
+    /**
+     * Multiply two fixed point numbers of format Qm.n.
+     *
+     * If both operands are of format Qm.n. Then the result is Q(2m).(2n). To get this
+     * back to Qm.n, shift the result to the right by n bits (result >> n) and then truncate
+     * the MSB m bits. Truncation of the MSB bits happens automatically in CAL if you
+     * define your types correctly.
+     *
+     * @input a - The first operand.
+     * @input b - The second operand.
+     * @return - The result of a*b
+     */
+    function fixedPointMultiply(int(size = m+n) a, int(size = m+n) b) --> int(size = m+n)
+        // If we just multiply a*b, then the result is treated as int(size = m+n) and automatic
+        // truncation occurs before we bit shift throwing away necessary information. By defining
+        // this variable and assigning a to it, the result of the multiplication of this with b
+        // is of type int(size = 2*m+2*n), meaning that no information is thrown away before the
+        // bitshift.
+        var int(size = 2*m+2*n) temp = a:
+        temp*b >> n
+    end
+
+    /**
+     * Divide one fixed point numbers of format Qm.n by another of the same format.
+     *
+     * The results of division get bitshifted to the right by n. To compensate for this
+     * we first shift the dividend to the left. (a << n) and then we divide (a >> n)/b. This
+     * keeps the decimal point in the correct place.
+     *
+     * @input a - The dividend.
+     * @input b - The divisor.
+     * @return - The quotient (result of a/b)
+     */
+    function fixedPointDivide(int(size = m+n) a, int(size = m+n) b) --> int(size = m+n)
+        // If we just bitshift a<<n, then the result is treated as int(size = m+n) and automatic
+        // truncation occurs before we divide throwing away necessary information. By defining
+        // this variable and assigning a to it, the result of the bitshift by n
+        // is of type int(size = 2*m+2*n), meaning that no information is thrown away before the
+        // division.
+        var int(size = 2*m+2*n) temp = a:
+        (temp << n)/b
+    end
+
+    /**
+     * Procedure that prints out a Qm.n floating point number.
+     *
+     * The number is converted to a float and multiplied by the scaling
+     * factor 2^(-n).
+     *
+     * @input fixedPointNumber - The fixed point number with m integer bits and
+     *                           n fractional bits to print.
+     */
     procedure printFixedPoint(int(size = m+n) fixedPointNumber)
     var
-        float output := 0,
-        float power2 := 1,
-        uint(size=8) bit := 0
+        float output,
+        float shift := 1
     begin
-        foreach uint i in 1..m-1 do
-            power2 := power2 * 2;
+        foreach uint i in 0..n-1 do
+            shift := shift / 2;
         end
-
-
-        foreach uint i in 0..(m+n-1) do
-            bit := (fixedPointNumber >> (m+n-1-i));
-            bit := bit & 1;
-
-            if i = 0 then
-                println("" + i + " " + bit + " " + -power2);
-                output := output - bit * power2;
-            else
-                println("" + i + " " + bit + " " + power2);
-                output := output + bit * power2;
-            end
-            power2 := power2/2;
-        end
-        println("Final Output: " + output);
+        output := fixedPointNumber * shift;
+        print("" + output);
     end
-
-
 end
