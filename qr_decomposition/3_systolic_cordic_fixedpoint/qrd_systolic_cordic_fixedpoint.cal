@@ -90,10 +90,10 @@ namespace qrd:
     // ==== Modifyable Constants: Start ===
 
     // The number of matrices that the Source actors will generate.
-    uint num_matrices=1;
+    uint num_matrices=3;
 
     // The size of the input square matrix
-    uint K = 2;
+    uint K = 4;
 
     // The maximum number of tokens that can be stored in the FIFOS between actors.
     uint buffer_size= 3;
@@ -102,17 +102,7 @@ namespace qrd:
     // but decreases latency and throughput.
     uint num_CORDIC_iterations = 12;
 
-    // Fixed point number represented by Qm.n where m is the number of integer bits + sign bit
-    // and n is the fractional component. One in this representation is bitshifted n bits
-    // to the right. We define it once here as we use it in a few places in the code.
-    uint m = 3;
-    uint n = 19;
-    uint fixed_point_one = 1 << n;
-
     // ==== Modifyable Constants: End ===
-
-    // The constant value that we need to multiply the results of the CORDIC algorithm by
-    float k_CORDIC_constant = 0.607252956441381;
 
     // The Source actor needs to feed actors in an entire row from left to right. It takes 
     // K firings from the first firing on the left before the last actor on the right fires.
@@ -123,6 +113,27 @@ namespace qrd:
     // The buffer size of the filters needs to be >K as the filter requires K tokens to be
     // present in order to fire.
     uint filter_buffer_size = buffer_size + K;
+
+    // ==== Fixed Point Constants and Functions: Start ===
+
+    // Fixed point number represented by Qm.n where m is the number of integer bits + sign bit
+    // and n is the fractional component.
+    uint m = 3;
+    uint n = 19;
+
+    // Fixed Point Constants - These are useful constants that we need to define
+    // here to get the correct value when interpreting them as fixed points.
+    int(size = m+n) fixed_point_one = 1 << n; // or 524288 in Q3.19
+    int(size = m+n) fixed_point_minus_one = -fixed_point_one; // or -524288 in Q3.19
+    int(size = m+n) nearZeroBoundaryP = 4; // 0.0000076 in Q3.13 representation
+    int(size = m+n) nearZeroBoundaryN = -4; // -0.0000076 in Q3.13 representation
+    int(size = m+n) fp_increment = 57672; // 0.11 in Q3.16 format
+
+    // The constant value that we need to multiply the results of the CORDIC algorithm by
+    // k = 0.607252956441381. The fixed point equivalent of this is:
+    int(size = m+n) k_CORDIC_constant = 318375;
+
+    // ==== Fixed Point Constants and Functions: End ===
 
     /**
      * Inner Cell PE of the systolic array (often just refered to as the I PE).
@@ -171,13 +182,12 @@ namespace qrd:
             end
 
             // Equations
-            x_out := -s*r + c*x_in;
-            r := c*r+s*x_in;
+            x_out :=  fixedPointMultiply(c,x_in) - fixedPointMultiply(s,r);
+            r := fixedPointMultiply(c,r)+fixedPointMultiply(s,x_in);
 
             // Additional part of reset logic
             count := count + 1;
             if count = K then
-                //println("r_i: " + r + " s: " + s + " c: " + c + " x_in: " + x_in);
                 count := 0;
             end
         end
@@ -208,7 +218,7 @@ namespace qrd:
      *  y[j+1] = y[j] - phi[j]*2^(-j)*x[j];
      * Where:
      *  - 2^(-j) is just a power of 2 value that can be obtained by bit shifting to the right in
-     *    fixed point representation
+     *    fixed point representation. (2^-j = 1 >> j)
      *  - phi[j] is -1 if x[j]y[j]  1 or else it is 1
      *  - y[0]=r
      *  - x[0]=x_in
@@ -241,7 +251,6 @@ namespace qrd:
             int(size = m+n) y_j,
             int(size = m+n) y_j_plus_1,
             int(size = m+n) phi_j,
-            int(size = m+n) denom,
             int(size = m+n) pow_2_val,
             int(size = m+n) root
         do
@@ -251,39 +260,36 @@ namespace qrd:
             end
             
             // If x_in is very close to zero, then we can skip all this calculation
-            if x_in < 0.00001 and x_in > -0.00001 then
-                c := 1;
+            if x_in < nearZeroBoundaryP and x_in > nearZeroBoundaryN then
+                c := fixed_point_one;
                 s := 0;
             else
                 // 2. Apply CORDIC algorithm to determine sqrt values
                 x_j := x_in;
                 y_j := r;
 
-                pow_2_val := 1;
                 foreach uint j in 0..num_CORDIC_iterations-1 do
-                    if(x_j*y_j >= 0) then
+                    // Bitshift is the same as /2 in this case
+                    pow_2_val := fixed_point_one >> j;
+                    if(fixedPointMultiply(x_j, y_j) >= 0) then
                         phi_j := -1;
                     else
                         phi_j := 1;
                     end
-
-                    x_j_plus_1 := x_j - phi_j * pow_2_val * y_j;
-                    y_j_plus_1 := y_j + phi_j * pow_2_val * x_j;
+                    x_j_plus_1 := x_j - phi_j * fixedPointMultiply(pow_2_val, y_j);
+                    y_j_plus_1 := y_j + phi_j * fixedPointMultiply(pow_2_val, x_j);
                     x_j := x_j_plus_1;
                     y_j := y_j_plus_1;
-
-                    // This would be a bitshift to the right when using fixed
-                    // point arithmatic, but we need a divide when using
-                    // floating point.
-                    pow_2_val := pow_2_val/2;
                 end
 
-                root := x_j * k_CORDIC_constant; 
+                root := fixedPointMultiply(x_j, k_CORDIC_constant);
 
                 // 3. Use CORDIC results to calculate r,s and c;
-                denom := 1/root; // The only division in this entire algorithm.
-                c := r*denom;
-                s := x_in*denom;
+                // Note we use 2 divides here instead of calculating 1/root
+                // once and then multiplying it by r and x_in as 1/root ends up losing lots
+                // of prescision when performing fixed point division.
+                c := fixedPointDivide(r,root);
+                s := fixedPointDivide(x_in,root);
                 r := root;
             end
 
@@ -326,7 +332,6 @@ namespace qrd:
         int row_index := 0;
         int matrix_number := 0;
 
-        int(size = m+n) fp_increment = 57672; // 0.11 in Q3.16 format
         int(size = m+n) next := fp_increment;
 
         transmit: action ==> Out[0..K-1]:[output]
@@ -350,7 +355,7 @@ namespace qrd:
             
             if(row_index = K) then
                 row_index := 0;
-                next := fixed_point_one;
+                next := fp_increment;
                 matrix_number := matrix_number + 1;
             end
         end
@@ -444,7 +449,8 @@ namespace qrd:
                 end
             end
             foreach uint index in 0..ports_in_row-1 do
-                print("" + input[index] + " ");
+                printFixedPoint(input[index]);
+                print(" ");
             end
             println("");
             matrix_number := matrix_number + 1;
@@ -475,7 +481,8 @@ namespace qrd:
         do
             print("Q"+matrix_number+": row " + row_index + ": ");
             foreach uint index in 0..K-1 do
-                print("" + input[index] + " ");
+                printFixedPoint(input[index]);
+                print(" ");
             end
             println("");
             matrix_number := matrix_number + 1;
@@ -498,7 +505,7 @@ namespace qrd:
      * @outputport In - Port receiving tokens from the PE
      * @outputport Out - Port outputing the remaining token after discarding the rest.
      */
-    actor Filter(uint num_tokens_to_filter) float In ==> float Out:
+    actor Filter(uint num_tokens_to_filter) int(size = m+n) In ==> int(size = m+n) Out:
         action In:[in_tokens] repeat num_tokens_to_filter ==> Out:[in_tokens[num_tokens_to_filter-1]] end
     end
 
