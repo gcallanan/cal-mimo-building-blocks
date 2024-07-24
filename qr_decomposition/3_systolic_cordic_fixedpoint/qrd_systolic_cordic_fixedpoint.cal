@@ -7,6 +7,9 @@ namespace qrd:
      * The standard Givens Rotations implementation requires many sqrt operations which are very
      * expensive. This implementation makes use of the CORDIC method to eliminate the sqrt operation
      *
+     * This implementation makes used of fixed point numbers and fixed point arithmatic instead
+     * of floating point numbers to make this this implementation easier for hardware synthesis tools.
+     *
      * @author Gareth Callanan
      *
      * @section 1: General Outline
@@ -85,6 +88,24 @@ namespace qrd:
      * architecture for qr decomposition." ACM Transactions on Reconfigurable Technology and
      * Systems (TRETS) 9.2 (2015): 1-22. Doi: https://doi.org/10.1145/2827700"
      * I did not implement their method, I rather just read their background.
+     *
+     * @section 3: Fixed point representation
+     *
+     * This implementation represents numbers in fixed point format as this is often better suited
+     * to hardware synthesis. Fixed point numbers are represented in Qm.n format where m represents
+     * the number of integer bits (+ sign bit) and n represents the number of fractional bits.
+     * Fixed point representation requires a special implementation of multiplication and division.
+     * This file defines the functions fixedPointMultiply(...) and fixedPointDivide(...) precisely
+     * to do this. Additionally, a printFixedPoint(...) procedure is created that prints out
+     * the value of the floating point number.
+     *
+     * The fixed point numbers are just stored in regular integers of size m+n bits. We
+     * define constants as regular integers but expect that they will be interpreted as floating
+     * point numbers. For example, we can set a variable to 4, but in Q3.19 form, it is interpreted
+     * as 0.0000076.
+     *
+     * All fixed point functions and constants are defined in the "Fixed Point Constants and
+     * Functions" section below.
      */
 
     // ==== Modifyable Constants: Start ===
@@ -125,13 +146,77 @@ namespace qrd:
     // here to get the correct value when interpreting them as fixed points.
     int(size = m+n) fixed_point_one = 1 << n; // or 524288 in Q3.19
     int(size = m+n) fixed_point_minus_one = -fixed_point_one; // or -524288 in Q3.19
-    int(size = m+n) nearZeroBoundaryP = 4; // 0.0000076 in Q3.13 representation
-    int(size = m+n) nearZeroBoundaryN = -4; // -0.0000076 in Q3.13 representation
+    int(size = m+n) nearZeroBoundaryP = 4; // 0.0000076 in Q3.19 representation
+    int(size = m+n) nearZeroBoundaryN = -4; // -0.0000076 in Q3.19 representation
     int(size = m+n) fp_increment = 57672; // 0.11 in Q3.16 format
 
     // The constant value that we need to multiply the results of the CORDIC algorithm by
     // k = 0.607252956441381. The fixed point equivalent of this is:
     int(size = m+n) k_CORDIC_constant = 318375;
+
+    /**
+     * Multiply two fixed point numbers of format Qm.n.
+     *
+     * If both operands are of format Qm.n. Then the result is Q(2m).(2n). To get this
+     * back to Qm.n, shift the result to the right by n bits (result >> n) and then truncate
+     * the MSB m bits. Truncation of the MSB bits happens automatically in CAL if you
+     * define your types correctly.
+     *
+     * @input a - The first operand.
+     * @input b - The second operand.
+     * @return - The result of a*b
+     */
+    function fixedPointMultiply(int(size = m+n) a, int(size = m+n) b) --> int(size = m+n)
+        // If we just multiply a*b, then the result is treated as int(size = m+n) and automatic
+        // truncation occurs before we bit shift throwing away necessary information. By defining
+        // this variable and assigning a to it, the result of the multiplication of this with b
+        // is of type int(size = 2*m+2*n), meaning that no information is thrown away before the
+        // bitshift.
+        var int(size = 2*m+2*n) temp = a:
+        temp*b >> n
+    end
+
+    /**
+     * Divide one fixed point numbers of format Qm.n by another of the same format.
+     *
+     * The results of division get bitshifted to the right by n. To compensate for this
+     * we first shift the dividend to the left. (a << n) and then we divide (a >> n)/b. This
+     * keeps the decimal point in the correct place.
+     *
+     * @input a - The dividend.
+     * @input b - The divisor.
+     * @return - The quotient (result of a/b)
+     */
+    function fixedPointDivide(int(size = m+n) a, int(size = m+n) b) --> int(size = m+n)
+        // If we just bitshift a<<n, then the result is treated as int(size = m+n) and automatic
+        // truncation occurs before we divide throwing away necessary information. By defining
+        // this variable and assigning a to it, the result of the bitshift by n
+        // is of type int(size = 2*m+2*n), meaning that no information is thrown away before the
+        // division.
+        var int(size = 2*m+2*n) temp = a:
+        (temp << n)/b
+    end
+
+    /**
+     * Procedure that prints out a Qm.n floating point number.
+     *
+     * The number is converted to a float and multiplied by the scaling
+     * factor 2^(-n).
+     *
+     * @input fixedPointNumber - The fixed point number with m integer bits and
+     *                           n fractional bits to print.
+     */
+    procedure printFixedPoint(int(size = m+n) fixedPointNumber)
+    var
+        float output,
+        float shift := 1
+    begin
+        foreach uint i in 0..n-1 do
+            shift := shift / 2;
+        end
+        output := fixedPointNumber * shift;
+        print("" + output);
+    end
 
     // ==== Fixed Point Constants and Functions: End ===
 
@@ -645,105 +730,5 @@ namespace qrd:
                 filters_q[r*K + c].Out --> joinersPerRow_q[c].r_in[r] {bufferSize = buffer_size;};
             end
         end
-    end
-
-
-    actor Temp() ==>:
-        uint run := 0;
-        receive: action ==> 
-        guard
-            run = 0
-        var
-            int(size = m+n) a11 := 115343,
-            int(size = m+n) a21 := 173015,
-            int(size = m+n) a31 := -786432,
-            int(size = m+n) addResult,
-            int(size = m+n) subResult1,
-            int(size = m+n) subResult2,
-            int(size = m+n) mulResult,
-            int(size = m+n) divResult
-        do  
-            addResult := a11 + a21;
-            print("Add: Result: "); printFixedPoint(addResult); println(" Expected: 0.55");
-
-            subResult1 := a21 - a11;
-            subResult2 := a11 - a21;
-            print("Subtract 1: Result: "); printFixedPoint(subResult1); println(" Expected: 0.11");
-            print("Subtract 2: Result: "); printFixedPoint(subResult2); println(" Expected: -0.11");
-
-            mulResult := fixedPointMultiply(a11, a21);
-            print("Multiply: Result: "); printFixedPoint(mulResult); println(" Expected: 0.0726");
-            
-            divResult := fixedPointDivide(a21, a11);
-            print("Divide 1: Result: "); printFixedPoint(divResult); println(" Expected: 1.5");
-            divResult := fixedPointDivide(a11, a21);
-            print("Divide 2: Result: "); printFixedPoint(divResult); println(" Expected: 0.666666");
-            println("Done!");
-            run := 1;
-        end
-    end
-
-    /**
-     * Multiply two fixed point numbers of format Qm.n.
-     *
-     * If both operands are of format Qm.n. Then the result is Q(2m).(2n). To get this
-     * back to Qm.n, shift the result to the right by n bits (result >> n) and then truncate
-     * the MSB m bits. Truncation of the MSB bits happens automatically in CAL if you
-     * define your types correctly.
-     *
-     * @input a - The first operand.
-     * @input b - The second operand.
-     * @return - The result of a*b
-     */
-    function fixedPointMultiply(int(size = m+n) a, int(size = m+n) b) --> int(size = m+n)
-        // If we just multiply a*b, then the result is treated as int(size = m+n) and automatic
-        // truncation occurs before we bit shift throwing away necessary information. By defining
-        // this variable and assigning a to it, the result of the multiplication of this with b
-        // is of type int(size = 2*m+2*n), meaning that no information is thrown away before the
-        // bitshift.
-        var int(size = 2*m+2*n) temp = a:
-        temp*b >> n
-    end
-
-    /**
-     * Divide one fixed point numbers of format Qm.n by another of the same format.
-     *
-     * The results of division get bitshifted to the right by n. To compensate for this
-     * we first shift the dividend to the left. (a << n) and then we divide (a >> n)/b. This
-     * keeps the decimal point in the correct place.
-     *
-     * @input a - The dividend.
-     * @input b - The divisor.
-     * @return - The quotient (result of a/b)
-     */
-    function fixedPointDivide(int(size = m+n) a, int(size = m+n) b) --> int(size = m+n)
-        // If we just bitshift a<<n, then the result is treated as int(size = m+n) and automatic
-        // truncation occurs before we divide throwing away necessary information. By defining
-        // this variable and assigning a to it, the result of the bitshift by n
-        // is of type int(size = 2*m+2*n), meaning that no information is thrown away before the
-        // division.
-        var int(size = 2*m+2*n) temp = a:
-        (temp << n)/b
-    end
-
-    /**
-     * Procedure that prints out a Qm.n floating point number.
-     *
-     * The number is converted to a float and multiplied by the scaling
-     * factor 2^(-n).
-     *
-     * @input fixedPointNumber - The fixed point number with m integer bits and
-     *                           n fractional bits to print.
-     */
-    procedure printFixedPoint(int(size = m+n) fixedPointNumber)
-    var
-        float output,
-        float shift := 1
-    begin
-        foreach uint i in 0..n-1 do
-            shift := shift / 2;
-        end
-        output := fixedPointNumber * shift;
-        print("" + output);
     end
 end
