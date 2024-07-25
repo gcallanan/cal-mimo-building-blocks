@@ -427,8 +427,12 @@ namespace qrd:
             print("A"+matrix_number+": row " + row_index + ": ");
             foreach uint index in 0..K-1 do
                 output[index] := next;
-                printFixedPoint(next);
-                print(" ");
+                // Uncomment these two lines if you want to output the value
+                // interpreted as a real value instead of as an integer
+                // printFixedPoint(next);
+                // print(" ");
+                // And comment this line out
+                print("" + next + " ");
                 next := next + fp_increment;
 
                 if (next >= fixed_point_one) then
@@ -534,8 +538,12 @@ namespace qrd:
                 end
             end
             foreach uint index in 0..ports_in_row-1 do
-                printFixedPoint(input[index]);
-                print(" ");
+                // Uncomment these two lines if you want to output the value
+                // interpreted as a real value instead of as an integer
+                // printFixedPoint(input[index]);
+                // print(" ");
+                // And comment this line out
+                print("" + input[index] + " ");
             end
             println("");
             matrix_number := matrix_number + 1;
@@ -566,8 +574,12 @@ namespace qrd:
         do
             print("Q"+matrix_number+": row " + row_index + ": ");
             foreach uint index in 0..K-1 do
-                printFixedPoint(input[index]);
-                print(" ");
+                // Uncomment these two lines if you want to output the value
+                // interpreted as a real value instead of as an integer
+                // printFixedPoint(input[index]);
+                // print(" ");
+                // And comment this line out
+                print("" + input[index] + " ");
             end
             println("");
             matrix_number := matrix_number + 1;

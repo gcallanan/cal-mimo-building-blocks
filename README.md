@@ -5,8 +5,8 @@ parts of the MIMO toolchain for 5G base stations.
 
 Massive MIMO is an enabling technology for 5G communications. It allows signals from multiple mobile
 devices to be received at multiple antennas connected to the same base station. The base station is
-then able to process these signals in such a way as to reduce the interference from the other
-mobile devices.
+then able to process these signals in such a way as to reduce the interference between these mobile
+devices.
 
 CAL describes applications as networks of connected actors that consume tokens on input ports and
 produce tokens on output ports. CAL is often used to describe dataflow. The advantage of this
