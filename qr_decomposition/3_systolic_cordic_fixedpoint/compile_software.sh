@@ -2,32 +2,47 @@
 echo "Compiling systolic array QR decomposition network to C++ and executing it"
 set -e
 rm -rf myprojects
+mkdir -p results
 
 current_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 
-# Floating point format of Qm.n
+# 1. Interpret command line arguments
+k=4
 m=3
 n=19
+while getopts k:m:n: flag
+do
+    case "${flag}" in
+        k) k=${OPTARG};;
+        m) m=${OPTARG};;
+        n) n=${OPTARG};;
+    esac
+done
 
-# 1. Generate C++ code from CAL code
+# 1.1 Set the m,n and k values in the qrd_systolic_cordic_fixedpoint.cal file
+bash change_fixed_point_format.sh $m $n
+sed -i  "s/    uint K = .*/    uint K = $k;/" qrd_systolic_cordic_fixedpoint.cal
+
+# 2. Generate C++ code from CAL code
 streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path qrd_systolic_cordic_fixedpoint.cal --target-path myproject qrd.Top
 
-# 2. Build the project binary
+# 3. Build the project binary
 mkdir -p  myproject/build/
 cd myproject/build/
 cmake ..
 time cmake --build . -j24 2> /dev/null
 
-# 3. Execute the binary, send output of execution to stdout and  and capture.txt
+# 4. Execute the binary, send output of execution to stdout and a file
+filename=capture_k${k}_Q${m}p${n}.txt
 cd ../bin
-./Top | tee ../../capture.txt
+./Top | tee ../../results/$filename
 
-# 4. Verify results
+# 5. Verify results
 cd ../..
-res=$(python3 qrdSystolicArrayErrorChecker.py -s -m $m -n $n)
+res=$(python3 error_checker.py -s -m $m -n $n -f results/$filename)
 echo "Highest, Mean error is (out of 1): $res"
 
-# 5. Done, print ending info
-echo "Software execution complete - results copied to 'capture.txt'"
+# 6. Done, print ending info
+echo "Software execution complete - results copied to '$filename'"
 echo "Script execution started at: $current_date_time"
 echo "Execution time: $(date -d@$SECONDS -u +%H:%M:%S)"

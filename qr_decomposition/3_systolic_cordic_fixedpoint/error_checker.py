@@ -18,7 +18,8 @@ parser = argparse.ArgumentParser(
                     description='A program that takes the results from the actor network and calculates the error between the results and the expected'
          )
 parser.add_argument('-n', '--fixed_point_n', type=int, default=19, help="Number of fractional bits n for Qm.n fixed point numer")
-parser.add_argument('-m', '--fixed_point_m', type=int, default=3, help="Number of integer bits m (including sign bit) for Qm.n fixed point numer")
+parser.add_argument('-m', '--fixed_point_m', type=int, default=3, help="Number of integer bits m (including sign bit) for Qm.n fixed point number")
+parser.add_argument('-f', '--input_file', help="Name of the file containing the results from the qrd_systolic_cordic_fixedpoint.cal file")
 parser.add_argument('-s', '--suppress', help='Suppress all output from script except for the final maximum error number',
                     action='store_false')  # on/off flag
 args = parser.parse_args()
@@ -29,7 +30,7 @@ m = args.fixed_point_m
 n = args.fixed_point_n
 
 # 1. Read data from file
-with open("capture.txt", 'r') as file:
+with open(args.input_file, 'r') as file:
      content = file.readlines()
 
 
@@ -62,9 +63,13 @@ for i in range(0,num_arrays):
    # 3. Multiply the Q and R matrix together to reconstruct the A matrix
    A_reconstructed = np.matmul(Q_matrix_fp_np, R_matrix_fp_np)
 
+   near0 = np.mean(np.abs(A_reconstructed))/1000
+   A_reconstructed[np.abs(A_reconstructed) < near0] = near0
+   A_matrix_fp_np[np.abs(A_matrix_fp_np) < near0] = near0
+
    # 4. Determine the error between the source A matrix and the reconstructed one
    # Determine the percentage error between the different elements
-   errors = np.abs(A_matrix_fp_np - A_reconstructed)/A_matrix_fp_np
+   errors = np.abs((A_matrix_fp_np - A_reconstructed)/A_matrix_fp_np)
    highest_error= np.max(errors)
    mean_error= np.mean(errors)
 
