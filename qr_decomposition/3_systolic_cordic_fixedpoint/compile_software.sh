@@ -16,7 +16,7 @@ streamblocks multicore --set experimental-network-elaboration=on --set reduction
 mkdir -p  myproject/build/
 cd myproject/build/
 cmake ..
-time cmake --build . -j24
+time cmake --build . -j24 2> /dev/null
 
 # 3. Execute the binary, send output of execution to stdout and  and capture.txt
 cd ../bin

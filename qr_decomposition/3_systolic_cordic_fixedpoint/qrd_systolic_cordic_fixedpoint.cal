@@ -135,7 +135,7 @@ namespace qrd:
     // present in order to fire.
     uint filter_buffer_size = buffer_size + K;
 
-    // ==== Fixed Point Constants and Functions: Start ===
+    // ==== Fixed Point Constants: Start ===
 
     // Fixed point number represented by Qm.n where m is the number of integer bits + sign bit
     // and n is the fractional component.
@@ -153,6 +153,9 @@ namespace qrd:
     // The constant value that we need to multiply the results of the CORDIC algorithm by
     // k = 0.607252956441381. The fixed point equivalent of this is:
     int(size = m+n) k_CORDIC_constant = 318375;
+
+    // ==== Fixed Point Constants: End ===
+    // ==== Fixed Point Functions: Start ===
 
     /**
      * Multiply two fixed point numbers of format Qm.n.
@@ -218,7 +221,7 @@ namespace qrd:
         print("" + output);
     end
 
-    // ==== Fixed Point Constants and Functions: End ===
+    // ==== Fixed Point Functions: End ===
 
     /**
      * Inner Cell PE of the systolic array (often just refered to as the I PE).
