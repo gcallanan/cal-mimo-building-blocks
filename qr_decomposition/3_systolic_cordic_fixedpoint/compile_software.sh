@@ -4,6 +4,7 @@ echo "This script takes in command line arguments:"
 echo " -k K (default 4) Set the dimensions of the A matrix to be decomposed. A is a KxK matrix"
 echo " -m M (default 3) Set the number of integer bits (including the sign bit) for Qm.n fixed point numbers"
 echo " -n M (default 19) Set the number of fractional bits for Qm.n fixed point numbers"
+echo " -i I (default 12) Set the number of iterations in the CORDIC process"
 set -e
 rm -rf myprojects
 mkdir -p results
@@ -14,18 +15,21 @@ current_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 k=4
 m=3
 n=19
-while getopts k:m:n: flag
+i=12
+while getopts k:m:n:i: flag
 do
     case "${flag}" in
         k) k=${OPTARG};;
         m) m=${OPTARG};;
         n) n=${OPTARG};;
+        i) i=${OPTARG};;
     esac
 done
 
 # 1.1 Set the m,n and k values in the qrd_systolic_cordic_fixedpoint.cal file
 bash scripts/change_fixed_point_format.sh $m $n
 sed -i  "s/    uint K = .*/    uint K = $k;/" qrd_systolic_cordic_fixedpoint.cal
+sed -i  "s/    uint num_CORDIC_iterations = .*/    uint num_CORDIC_iterations = $i;/" qrd_systolic_cordic_fixedpoint.cal
 
 # 2. Generate C++ code from CAL code
 streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path qrd_systolic_cordic_fixedpoint.cal --target-path myproject qrd.Top
