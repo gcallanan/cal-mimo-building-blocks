@@ -9,6 +9,7 @@ multiplies Q and R together to calculate A again. From this it determines
 the error between the original A and the recalculated A.
 """
 import numpy as np
+import pandas as pd
 import argparse
 
 # Command Line arguments
@@ -36,6 +37,7 @@ with open("capture.txt", 'r') as file:
 # that each of these produces relatively small errors
 num_arrays = int(content[-1][1:content[-1].find(":")]) + 1
 highest_errors = []
+mean_errors = []
 
 for i in range(0,num_arrays):
 
@@ -64,28 +66,29 @@ for i in range(0,num_arrays):
    # Determine the percentage error between the different elements
    errors = np.abs(A_matrix_fp_np - A_reconstructed)/A_matrix_fp_np
    highest_error= np.max(errors)
+   mean_error= np.mean(errors)
 
    # 5. Print all arrays and errors. Only print the highest error value if the 
    # suppress flag is set
    if(args.suppress):
       print(f"R{i} matrix:")
-      print(R_matrix_fp_np)
+      print(pd.DataFrame(R_matrix_fp_np))
       print()
 
       print(f"Q{i} matrix: ")
-      print(Q_matrix_fp_np)
+      print(pd.DataFrame(Q_matrix_fp_np))
       print()
 
       print(f"Original A{i} matrix: ")
-      print(A_matrix_fp_np)
+      print(pd.DataFrame(A_matrix_fp_np))
       print()
 
       print(f"A{i} matrix constructed by multiplying Q{i} and R{i}: ")
-      print(A_reconstructed)
+      print(pd.DataFrame(A_reconstructed))
       print()
 
       print(f"Error between elements of original A{i} and reconstructed A{i} (a1_ij-a2_ij)/a1_ij")
-      print(errors)
+      print(pd.DataFrame(errors))
       print()
 
       print("Highest error expressed as a percent (1 is maximum):")
@@ -93,7 +96,8 @@ for i in range(0,num_arrays):
       print()
 
    highest_errors.append(highest_error)
+   mean_errors.append(mean_error)
 
 if(args.suppress):   
-   print("Maximum error across all input arrays (1 is maximum):")
-print(np.max(highest_errors))
+   print("Maximum error across all input arrays/Mean error across all input arrays (maximum is 1):")
+print(np.max(highest_errors),np.mean(mean_errors))

@@ -110,7 +110,7 @@ namespace qrd:
 
     // ==== Modifyable Constants: Start ===
 
-    // The number of matrices that the Source actors will generate.
+    // The number of matrices that the Source actor will generate.
     uint num_matrices=3;
 
     // The size of the input square matrix
@@ -422,7 +422,7 @@ namespace qrd:
         transmit: action ==> Out[0..K-1]:[output]
         guard matrix_number < num_matrices
         var 
-            List(type:float, size = K) output
+            List(type:int(size = m+n), size = K) output
         do
             print("A"+matrix_number+": row " + row_index + ": ");
             foreach uint index in 0..K-1 do
@@ -436,7 +436,7 @@ namespace qrd:
                 next := next + fp_increment;
 
                 if (next >= fixed_point_one) then
-                    next := next - fixed_point_one;
+                    next := next - fixed_point_one - fixed_point_one;
                 end
             end
             row_index := row_index + 1;

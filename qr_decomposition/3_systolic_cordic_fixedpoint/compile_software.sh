@@ -25,7 +25,7 @@ cd ../bin
 # 4. Verify results
 cd ../..
 res=$(python3 qrdSystolicArrayErrorChecker.py -s -m $m -n $n)
-echo "Maximum Error is: $res (maximum is one)"
+echo "Highest, Mean error is (out of 1): $res"
 
 # 5. Done, print ending info
 echo "Software execution complete - results copied to 'capture.txt'"
