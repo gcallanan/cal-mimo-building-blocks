@@ -1,5 +1,9 @@
 #!/bin/bash
 echo "Compiling systolic array QR decomposition network to C++ and executing it"
+echo "This script takes in command line arguments:"
+echo " -k K (default 4) Set the dimensions of the A matrix to be decomposed. A is a KxK matrix"
+echo " -m M (default 3) Set the number of integer bits (including the sign bit) for Qm.n fixed point numbers"
+echo " -n M (default 19) Set the number of fractional bits for Qm.n fixed point numbers"
 set -e
 rm -rf myprojects
 mkdir -p results
@@ -20,7 +24,7 @@ do
 done
 
 # 1.1 Set the m,n and k values in the qrd_systolic_cordic_fixedpoint.cal file
-bash change_fixed_point_format.sh $m $n
+bash scripts/change_fixed_point_format.sh $m $n
 sed -i  "s/    uint K = .*/    uint K = $k;/" qrd_systolic_cordic_fixedpoint.cal
 
 # 2. Generate C++ code from CAL code
@@ -39,7 +43,7 @@ cd ../bin
 
 # 5. Verify results
 cd ../..
-res=$(python3 error_checker.py -s -m $m -n $n -f results/$filename)
+res=$(python3 scripts/error_checker.py -s -m $m -n $n -f results/$filename)
 echo "Highest, Mean error is (out of 1): $res"
 
 # 6. Done, print ending info

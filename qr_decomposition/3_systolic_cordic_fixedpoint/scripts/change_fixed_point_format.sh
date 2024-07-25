@@ -16,7 +16,7 @@ m=${1:-3}
 n=${2:-19}
 
 sed '/ ==== Fixed Point Constants: Start ===/Q' qrd_systolic_cordic_fixedpoint.cal > temp.txt
-python3 generate_qrd_fixedpoint_constants.py -m $m -n $n >> temp.txt
+python3 scripts/generate_qrd_fixedpoint_constants.py -m $m -n $n >> temp.txt
 sed '1,/==== Fixed Point Constants: End ===/d' qrd_systolic_cordic_fixedpoint.cal >> temp.txt
 cat temp.txt > qrd_systolic_cordic_fixedpoint.cal
 rm temp.txt
