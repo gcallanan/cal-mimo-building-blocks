@@ -37,8 +37,8 @@ streamblocks multicore --set experimental-network-elaboration=on --set reduction
 # 3. Build the project binary
 mkdir -p  myproject/build/
 cd myproject/build/
-cmake ..
-time cmake --build . -j24 2> /dev/null
+cmake .. 2> /dev/null
+cmake --build . -j24 2> /dev/null
 
 # 4. Execute the binary, send output of execution to stdout and a file
 filename=capture_k${k}_Q${m}p${n}.txt
