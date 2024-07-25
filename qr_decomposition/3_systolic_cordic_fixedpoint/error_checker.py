@@ -14,7 +14,7 @@ import argparse
 
 # Command Line arguments
 parser = argparse.ArgumentParser(
-                    prog='QRD Systolic Array Results Error Checker',
+                    prog='Error Checker for QRD Systolic Array program',
                     description='A program that takes the results from the actor network and calculates the error between the results and the expected'
          )
 parser.add_argument('-n', '--fixed_point_n', type=int, default=19, help="Number of fractional bits n for Qm.n fixed point numer")

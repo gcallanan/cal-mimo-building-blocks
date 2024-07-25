@@ -144,15 +144,15 @@ namespace qrd:
 
     // Fixed Point Constants - These are useful constants that we need to define
     // here to get the correct value when interpreting them as fixed points.
-    int(size = m+n) fixed_point_one = 1 << n; // or 524288 in Q3.19
-    int(size = m+n) fixed_point_minus_one = -fixed_point_one; // or -524288 in Q3.19
-    int(size = m+n) nearZeroBoundaryP = 4; // 0.0000076 in Q3.19 representation
-    int(size = m+n) nearZeroBoundaryN = -4; // -0.0000076 in Q3.19 representation
-    int(size = m+n) fp_increment = 57672; // 0.11 in Q3.16 format
+    int(size = m+n) fixed_point_one = 524288;
+    int(size = m+n) fixed_point_minus_one = -524288;
+    int(size = m+n) nearZeroBoundaryP = 4; // 0.0000076294 in Q3.19 representation
+    int(size = m+n) nearZeroBoundaryN = -4; // -0.0000076294 in Q3.19 representation
+    int(size = m+n) fp_increment = 57671; // 0.1099987030 in Q3.19 format
 
     // The constant value that we need to multiply the results of the CORDIC algorithm by
     // k = 0.607252956441381. The fixed point equivalent of this is:
-    int(size = m+n) k_CORDIC_constant = 318375;
+    int(size = m+n) k_CORDIC_constant = 318375; // 0.6072521210 in Q3.19 format
 
     // ==== Fixed Point Constants: End ===
     // ==== Fixed Point Functions: Start ===
