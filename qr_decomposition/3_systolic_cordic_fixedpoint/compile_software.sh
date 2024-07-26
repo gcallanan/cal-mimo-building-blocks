@@ -41,7 +41,7 @@ cmake .. 2> /dev/null
 cmake --build . -j24 2> /dev/null
 
 # 4. Execute the binary, send output of execution to stdout and a file
-filename=capture_k${k}_Q${m}p${n}.txt
+filename=capture_k${k}_i${i}_Q${m}p${n}.txt
 cd ../bin
 ./Top | tee ../../results/$filename
 
