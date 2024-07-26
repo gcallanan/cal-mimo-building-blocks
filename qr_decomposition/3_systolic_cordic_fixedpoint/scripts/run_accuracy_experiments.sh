@@ -33,7 +33,7 @@ echo "Starting experiments to measure accuracy when changing CORDIC iterations i
 echo ""
 
 for i in {6..16}; do  # This is the matrix size
-    echo "i is set to $i. Running tests with n from 19 to 28:"
+    echo "i is set to $i. Running tests with n from 19 to 25:"
     for n in {19..25}; do # This is the number of fractional bits in the fixed point number
         echo "    Running test for K=16, n=$n, m=3 and i=$i (k and m are fixed)."
         # This commands just extracts the fourth last line from compile_software.sh which displays
