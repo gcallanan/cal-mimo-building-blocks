@@ -3,3 +3,4 @@ streamblocks-examples/
 .vscode/
 capture.txt
 results/
+__pycache__/
