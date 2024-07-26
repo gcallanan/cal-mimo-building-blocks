@@ -146,8 +146,8 @@ namespace qrd:
     // here to get the correct value when interpreting them as fixed points.
     int(size = m+n) fixed_point_one = 524288;
     int(size = m+n) fixed_point_minus_one = -524288;
-    int(size = m+n) nearZeroBoundaryP = 4; // 0.0000076294 in Q3.19 representation
-    int(size = m+n) nearZeroBoundaryN = -4; // -0.0000076294 in Q3.19 representation
+    int(size = m+n) nearZeroBoundaryP = 26; // 0.0000495911 in Q3.19 representation
+    int(size = m+n) nearZeroBoundaryN = -26; // -0.0000495911 in Q3.19 representation
     int(size = m+n) fp_increment = 57671; // 0.1099987030 in Q3.19 format
 
     // The constant value that we need to multiply the results of the CORDIC algorithm by

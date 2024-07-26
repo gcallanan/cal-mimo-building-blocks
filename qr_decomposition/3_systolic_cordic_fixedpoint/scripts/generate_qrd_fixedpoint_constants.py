@@ -30,11 +30,11 @@ increment = 0.11
 increment_fp = int(increment * (2 ** n))
 increment_actual = increment_fp * (2.0 ** -n)
 
-lowerBoundary_P = 0.000008
+lowerBoundary_P = 0.00005
 lowerBoundary_P_fp = int(lowerBoundary_P * (2 ** n))
 lowerBoundary_P_actual = lowerBoundary_P_fp * (2.0 ** -n)
 
-lowerBoundary_N = -0.000008
+lowerBoundary_N = -0.00005
 lowerBoundary_N_fp = int(lowerBoundary_N * (2 ** n))
 lowerBoundary_N_actual = lowerBoundary_N_fp * (2.0 ** -n)
 
