@@ -108,6 +108,10 @@ namespace qrd:
      * Functions" section below.
      */
 
+    // If the source actor generates matrices using randInt, then this line needs to be uncommented.
+    // Please see the comments in the Source actor before uncommenting this line
+    import var System.math.randInt;
+
     // ==== Modifyable Constants: Start ===
 
     // The number of matrices that the Source actor will generate.
@@ -429,14 +433,33 @@ namespace qrd:
         do
             print("A"+matrix_number+": row " + row_index + ": ");
             foreach uint index in 0..K-1 do
-                output[index] := next;
-                // Uncomment these two lines if you want to output the value
+
+                // ======= Generated Source Value: Start =======
+
+                // Randint is used for generating varied source matrices. This function is not
+                // implemented for all CAL backends, so it is commented out. You can uncomment
+                // it if your backend supports the randInt function. Remember to uncomment
+                // "import var System.math.randInt;" at the top of this file if you do it.
+                // Also comment out the "output[index] := next;" after this line.
+                // See comments in compile_software.sh to ensure the randInt function
+                // is imported during compilation. This is a very manual process, so consider it
+                // experimental
+                output[index] := randInt(fixed_point_one*2 - 400) - (fixed_point_one - 200);
+                //output[index] := next;
+
+                // ======= Generated Source Value: Start =======
+
+                // ======= Print Generated Source Values: Start =======
+
+                // Uncomment these two lines if you want to print the value
                 // interpreted as a real value instead of as an integer
                 // printFixedPoint(next);
                 // print(" ");
                 // And comment this line out
-                print("" + next + " ");
+                print("" + output[index] + " ");
                 next := next + fp_increment;
+
+                // ======= Print Generated Source Values: End =======
 
                 if (next >= fixed_point_one) then
                     next := next - fixed_point_one - fixed_point_one;
@@ -541,7 +564,7 @@ namespace qrd:
                 end
             end
             foreach uint index in 0..ports_in_row-1 do
-                // Uncomment these two lines if you want to output the value
+                // Uncomment these two lines if you want to print the value
                 // interpreted as a real value instead of as an integer
                 // printFixedPoint(input[index]);
                 // print(" ");
@@ -577,7 +600,7 @@ namespace qrd:
         do
             print("Q"+matrix_number+": row " + row_index + ": ");
             foreach uint index in 0..K-1 do
-                // Uncomment these two lines if you want to output the value
+                // Uncomment these two lines if you want to print the value
                 // interpreted as a real value instead of as an integer
                 // printFixedPoint(input[index]);
                 // print(" ");

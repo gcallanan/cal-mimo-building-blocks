@@ -68,7 +68,7 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="results/capture
       A_matrix_fp_np[np.abs(A_matrix_fp_np) < near0] = near0
 
       # 4. Determine the error between the source A matrix and the reconstructed one
-      # Determine the percentage error between the different elements
+      # Determine the error between the different elements
       errors = np.abs((A_matrix_fp_np - A_reconstructed)/A_matrix_fp_np)
       highest_error= np.max(errors)
       mean_error= np.mean(errors)
@@ -96,7 +96,7 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="results/capture
          print(pd.DataFrame(errors))
          print()
 
-         print("Highest error expressed as a percent (1 is maximum):")
+         print("Highest error expressed (1 is maximum):")
          print(highest_error)
          print()
 

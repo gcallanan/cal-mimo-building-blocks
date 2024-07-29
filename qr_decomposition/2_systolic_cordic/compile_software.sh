@@ -4,12 +4,6 @@ set -e
 
 current_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 
-if [ ! -d "streamblocks-examples" ]; then
-  echo "Missing the streamblocks-examples repository in this directory. It is required to call the sqrt() function."
-  echo "Pull with 'git clone https://github.com/streamblocks/streamblocks-examples.git'"
-  exit 1
-fi
-
 rm -rf myprojects
 
 streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path qrd_systolic_cordic.cal --target-path myproject qrd.Top
