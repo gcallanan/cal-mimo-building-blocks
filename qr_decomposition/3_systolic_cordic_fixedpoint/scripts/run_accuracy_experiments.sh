@@ -8,6 +8,8 @@ echo ""
 echo "The output of these scripts is placed in the results folder. There are .txt files that contain the raw error results for each execution of the QR program. Additionally csv files are generated that are collections of the errors for the different experiments in the same file to allow for easier analysis."
 echo ""
 
+set -e
+
 start_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 
 echo "Starting experiments to measure accuracy when changing matrix size k and fixed point fractional size n"
@@ -32,7 +34,7 @@ echo ""
 echo "Starting experiments to measure accuracy when changing CORDIC iterations i and fixed point fractional size n"
 echo ""
 
-for i in {6..16}; do  # This is the matrix size
+for i in {6..16}; do  # This is the number of CORDIC iterations
     echo "i is set to $i. Running tests with n from 19 to 25:"
     for n in {19..25}; do # This is the number of fractional bits in the fixed point number
         echo "    Running test for K=16, n=$n, m=3 and i=$i (k and m are fixed)."

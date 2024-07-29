@@ -20,14 +20,14 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="results/capture
    input A matrix and the A matrix produced by multiplying Q and R.
 
    For each element in the matrix, the error is calculated with the formula:
-      (a_given_ij - a_calculated_ij)/a_given_ij
+      (a_given_ij - a_calculated_ij)
 
    :param m:int describe about parameter p1
    :param n:int describe about parameter p2
    :param input_file_name:str describe about parameter p3
    :param suppress:bool describe about parameter p3
    :return:(float, float). A tuple containing first, the worst error value among all the arrays
-                           and second, the mean error value among the arrays.
+                           and second, the RMS error value among the arrays.
    """
    # 1. Read data from file
    with open(input_file_name, 'r') as file:
@@ -63,19 +63,19 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="results/capture
       # 3. Multiply the Q and R matrix together to reconstruct the A matrix
       A_reconstructed = np.matmul(Q_matrix_fp_np, R_matrix_fp_np)
 
-      near0 = np.mean(np.abs(A_reconstructed))/1000
+      near0 = np.mean(np.abs(A_reconstructed))/10
       A_reconstructed[np.abs(A_reconstructed) < near0] = near0
       A_matrix_fp_np[np.abs(A_matrix_fp_np) < near0] = near0
 
       # 4. Determine the error between the source A matrix and the reconstructed one
       # Determine the error between the different elements
-      errors = np.abs((A_matrix_fp_np - A_reconstructed)/A_matrix_fp_np)
+      errors = np.abs(A_matrix_fp_np - A_reconstructed)
       highest_error= np.max(errors)
-      mean_error= np.mean(errors)
+      mean_error= np.sqrt(np.mean(np.square(errors)))
 
       # 5. Print all arrays and errors. Only print the highest error value if the
       # suppress flag is set
-      if(not suppress):
+      if(not suppress and highest_error > 0.007):
          print(f"R{i} matrix:")
          print(pd.DataFrame(R_matrix_fp_np))
          print()
@@ -92,12 +92,16 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="results/capture
          print(pd.DataFrame(A_reconstructed))
          print()
 
-         print(f"Error between elements of original A{i} and reconstructed A{i} (a1_ij-a2_ij)/a1_ij")
+         print(f"Error between elements of original A{i} and reconstructed A{i} |a1_ij-a2_ij|")
          print(pd.DataFrame(errors))
          print()
 
-         print("Highest error expressed (1 is maximum):")
+         print("Highest error (1 is maximum):")
          print(highest_error)
+         print()
+
+         print("RMS error (1 is maximum):")
+         print(mean_error)
          print()
 
       highest_errors.append(highest_error)

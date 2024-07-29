@@ -1,7 +1,7 @@
-myproject/
+myproject*/
 streamblocks-examples/
 .vscode/
 capture.txt
-results/
+results*/
 __pycache__/
 time.log
