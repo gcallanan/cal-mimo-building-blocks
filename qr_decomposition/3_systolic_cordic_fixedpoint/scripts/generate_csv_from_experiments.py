@@ -16,6 +16,7 @@ This results in 4 csv files, 2 for each experiment.
 
 import error_checker
 import os
+import time
 
 # 1. Generate csv files for the first experiment
 # 1.1 Load the names of all the capture files in the results folder where the number of cordic iterations is 12
@@ -42,14 +43,20 @@ top_line = "k\\n,"+",".join([str(n) for n in n_values])
 csv_file_average_contents=[top_line]
 csv_file_worst_contents=[top_line]
 
+print("Generating results for changing k and n")
+
 for k in k_values:
     csv_row_worst_case = f"{k},"
     csv_row_average_case = f"{k},"
     for n in n_values:
         file_name = directory_string + f"capture_k{k}_i12_Q{m}p{n}.txt"
+        print("\tLoading File From: " + file_name)
+        start = time.time()
         worst,average = error_checker.runErrorChecker(m,n,file_name,True)
         csv_row_average_case+=f"{average:.20f},"
         csv_row_worst_case+=f"{worst:.20f},"
+        end = time.time()
+        print(f"\tProcessing Time: {end - start}")
 
     csv_file_worst_contents.append(csv_row_worst_case)
     csv_file_average_contents.append(csv_row_average_case)
@@ -83,11 +90,14 @@ top_line = "i\\n,"+",".join([str(n) for n in n_values])
 csv_file_average_contents=[top_line]
 csv_file_worst_contents=[top_line]
 
+print("Generating results for changing i and n")
 for i in i_values:
     csv_row_worst_case = f"{i},"
     csv_row_average_case = f"{i},"
     for n in n_values:
         file_name = directory_string + f"capture_k16_i{i}_Q{m}p{n}.txt"
+        start = time.time()
+        print("\tLoading File From: " + file_name)
         worst,average = error_checker.runErrorChecker(m,n,file_name,True)
         csv_row_average_case+=f"{average:.20f},"
         csv_row_worst_case+=f"{worst:.20f},"
