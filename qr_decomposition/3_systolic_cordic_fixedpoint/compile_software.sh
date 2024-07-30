@@ -32,17 +32,17 @@ sed -i  "s/    uint K = .*/    uint K = $k;/" qrd_systolic_cordic_fixedpoint.cal
 sed -i  "s/    uint num_CORDIC_iterations = .*/    uint num_CORDIC_iterations = $i;/" qrd_systolic_cordic_fixedpoint.cal
 
 # 2. Generate C++ code from CAL code
-#streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path qrd_systolic_cordic_fixedpoint.cal --target-path myproject qrd.Top
+streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path qrd_systolic_cordic_fixedpoint.cal --target-path myproject qrd.Top
 
 # If you want to use the randInt function to generate the source actors, comment out the
 # "streamblocks multicore ..." line above and uncomment the next 6 lines, see comments in
 # the Source actor for "qrd_systolic_cordic_fixedpoint.cal" for more info.
-if [ ! -d "streamblocks-examples" ]; then
-  echo "Missing the streamblocks-examples repository in this directory. It is required to call the sqrt() function."
-  echo "Pull with 'git clone https://github.com/streamblocks/streamblocks-examples.git'"
-  exit 1
-fi
-streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path qrd_systolic_cordic_fixedpoint.cal:streamblocks-examples/system --target-path myproject qrd.Top
+#if [ ! -d "streamblocks-examples" ]; then
+#  echo "Missing the streamblocks-examples repository in this directory. It is required to call the sqrt() function."
+#  echo "Pull with 'git clone https://github.com/streamblocks/streamblocks-examples.git'"
+#  exit 1
+#fi
+#streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path qrd_systolic_cordic_fixedpoint.cal:streamblocks-examples/system --target-path myproject qrd.Top
 # End of lines to uncomment
 
 # 3. Build the project binary
