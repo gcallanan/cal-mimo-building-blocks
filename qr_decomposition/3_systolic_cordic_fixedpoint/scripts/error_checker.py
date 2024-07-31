@@ -75,7 +75,7 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="results/capture
 
       # 5. Print all arrays and errors. Only print the highest error value if the
       # suppress flag is set
-      if(not suppress and highest_error > 0.007):
+      if(not suppress):
          print(f"R{i} matrix:")
          print(pd.DataFrame(R_matrix_fp_np))
          print()
