@@ -14,7 +14,7 @@ import argparse
 from typing import Tuple
 
 
-def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="results/capture_k4_Q3p19.txt", suppress:bool=False) -> Tuple[float,float]:
+def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="accuracy_results/capture_k4_Q3p19.txt", suppress:bool=False) -> Tuple[float,float]:
    """
    Read the A,Q and R matrices from a given text file and calculate the errors from the
    input A matrix and the A matrix produced by multiplying Q and R.
@@ -121,7 +121,7 @@ if(__name__ == "__main__"):
             )
    parser.add_argument('-n', '--fixed_point_n', type=int, default=19, help="Number of fractional bits n for Qm.n fixed point numer")
    parser.add_argument('-m', '--fixed_point_m', type=int, default=3, help="Number of integer bits m (including sign bit) for Qm.n fixed point number")
-   parser.add_argument('-f', '--input_file', type=str, default="results/capture_k4_Q3p19.txt", help="Name of the file containing the results from the qrd_systolic_cordic_fixedpoint.cal file")
+   parser.add_argument('-f', '--input_file', type=str, default="accuracy_results/capture_k4_Q3p19.txt", help="Name of the file containing the results from the qrd_systolic_cordic_fixedpoint.cal file")
    parser.add_argument('-s', '--suppress', help='Suppress all output from script except for the final maximum error number',
                      action='store_true')  # on/off flag
    args = parser.parse_args()

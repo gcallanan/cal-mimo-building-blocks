@@ -13,15 +13,15 @@ set -e
 start_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 
 echo "Starting experiments to measure accuracy when changing matrix size k and fixed point fractional size n"
-for k in {2..16}; do  # This is the matrix size
-    echo "K is set to $k. Running tests with n from 19 to 28:"
-    for n in {19..28}; do # This is the number of fractional bits in the fixed point number
-        echo "    Running test for K=$k, n=$n, m=3 and i=12 (m and i are fixed)."
+for k in `seq 0 2 16`; do  # This is the matrix size
+    echo "K is set to $k. Running tests with n from 19 to 27"
+    for n in `seq 19 2 27`; do # This is the number of fractional bits in the fixed point number
+        echo "    Running test for K=$k, n=$n, m=3 and i=16 (m and i are fixed)."
         # This commands just extracts the fourth last line from compile_software.sh which displays
         # the accuracy of the generated results. Additionally we add tabs to that line and then
         # display it. We suppress the rest of the output from the script as it makes it hard
         # to keep track with our progress
-        \time -f "%E" -o time.log bash compile_software.sh -k $k -m 3 -n $n -i 12 | tail -n 4 | head -n 1 | sed 's/^/        /'
+        \time -f "%E" -o time.log bash compile_software.sh -k $k -m 3 -n $n -i 16 | tail -n 4 | head -n 1 | sed 's/^/        /'
         
         # Print the execution time of the script
         cat time.log | sed 's/^/        Execution Time: /'
@@ -34,9 +34,9 @@ echo ""
 echo "Starting experiments to measure accuracy when changing CORDIC iterations i and fixed point fractional size n"
 echo ""
 
-for i in {6..16}; do  # This is the number of CORDIC iterations
-    echo "i is set to $i. Running tests with n from 19 to 28:"
-    for n in {19..28}; do # This is the number of fractional bits in the fixed point number
+for i in `seq 8 4 32`; do  # This is the number of CORDIC iterations
+    echo "i is set to $i. Running tests with n from 19 to 27:"
+    for n in `seq 19 2 27`; do # This is the number of fractional bits in the fixed point number
         echo "    Running test for K=16, n=$n, m=3 and i=$i (k and m are fixed)."
         # This commands just extracts the fourth last line from compile_software.sh which displays
         # the accuracy of the generated results. Additionally we add tabs to that line and then

@@ -19,9 +19,9 @@ import os
 import time
 
 # 1. Generate csv files for the first experiment
-# 1.1 Load the names of all the capture files in the results folder where the number of cordic iterations is 12
-directory_string = "results/"
-result_files_names = [f for f in os.listdir(directory_string) if os.path.isfile(os.path.join(directory_string, f)) and "capture_k" in f and "i12" in f]
+# 1.1 Load the names of all the capture files in the results folder where the number of cordic iterations is 16
+directory_string = "accuracy_results/"
+result_files_names = [f for f in os.listdir(directory_string) if os.path.isfile(os.path.join(directory_string, f)) and "capture_k" in f and "i16" in f]
 
 # 1.2 Get a list of all unique matrix sizes "K" from the list of experiments.
 k_values_not_unique_not_sorted = [int(f[f.find("_")+2:f.find("_",f.find("_")+2)]) for f in result_files_names]
@@ -49,7 +49,7 @@ for k in k_values:
     csv_row_worst_case = f"{k},"
     csv_row_average_case = f"{k},"
     for n in n_values:
-        file_name = directory_string + f"capture_k{k}_i12_Q{m}p{n}.txt"
+        file_name = directory_string + f"capture_k{k}_i16_Q{m}p{n}.txt"
         print("\tLoading File From: " + file_name)
         start = time.time()
         worst,average = error_checker.runErrorChecker(m,n,file_name,True)
@@ -72,7 +72,7 @@ with open(directory_string + 'experiment_results_k_scaling_average_error.csv', '
 
 # 2. Generate csv files for the second experiment
 # 2.1 Load the names of all the capture files for K=16 in the results folder
-result_files_names = [f for f in os.listdir(directory_string) if os.path.isfile(os.path.join(directory_string, f)) and "capture_k16" in f and not "_i12_" in f]
+result_files_names = [f for f in os.listdir(directory_string) if os.path.isfile(os.path.join(directory_string, f)) and "capture_k16" in f and not "_i16_" in f]
 
 # 2.2 Get the varying n and i values
 n_values_not_unique_not_sorted = [int(f[f.rfind("p")+1:f.rfind(".")]) for f in result_files_names]
@@ -81,7 +81,7 @@ n_values.sort()
 
 i_values_not_unique_not_sorted = [int(f[f.find("_i")+2:f.find("_",f.find("_i")+2)]) for f in result_files_names]
 i_values = list(dict.fromkeys(i_values_not_unique_not_sorted))
-i_values.append(12) # We excluded this from our search as i12 is for experiment one, it would confuse our i values. But its safe to add it back now
+i_values.append(16) # We excluded this from our search as i16 is for experiment one, it would confuse our i values. But its safe to add it back now
 i_values.sort()
 
 # 2.3 Exract the error values from the different files for the first experiment and store the

@@ -4,7 +4,7 @@ echo "This script takes in command line arguments:"
 echo " -k K (default 4) Set the dimensions of the A matrix to be decomposed. A is a KxK matrix"
 echo " -m M (default 3) Set the number of integer bits (including the sign bit) for Qm.n fixed point numbers"
 echo " -n M (default 19) Set the number of fractional bits for Qm.n fixed point numbers"
-echo " -i I (default 12) Set the number of iterations in the CORDIC process"
+echo " -i I (default 16) Set the number of iterations in the CORDIC process"
 set -e
 rm -rf myprojects
 mkdir -p results
@@ -15,7 +15,7 @@ current_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 k=4
 m=3
 n=19
-i=12
+i=16
 while getopts k:m:n:i: flag
 do
     case "${flag}" in
@@ -54,7 +54,7 @@ cmake --build . -j24 2> /dev/null
 # 4. Execute the binary, send output of execution to stdout and a file
 filename=capture_k${k}_i${i}_Q${m}p${n}.txt
 cd ../bin
-./Top | tee ../../results/$filename
+./Top | tee ../../accuracy_results/$filename
 
 # 5. Verify results
 cd ../..
