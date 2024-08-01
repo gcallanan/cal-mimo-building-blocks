@@ -58,7 +58,7 @@ cd ../bin
 
 # 5. Verify results
 cd ../..
-res=$(python3 scripts/error_checker.py -s -m $m -n $n -f results/$filename)
+res=$(python3 scripts/error_checker.py -s -m $m -n $n -f accuracy_results/$filename)
 echo "Highest, Mean error is (out of 1): $res"
 
 # 6. Done, print ending info
