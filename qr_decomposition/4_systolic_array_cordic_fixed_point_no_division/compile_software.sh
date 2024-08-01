@@ -7,7 +7,7 @@ echo " -n M (default 19) Set the number of fractional bits for Qm.n fixed point 
 echo " -i I (default 16) Set the number of iterations in the CORDIC process"
 set -e
 rm -rf myprojects
-mkdir -p results
+mkdir -p accuracy_results
 
 current_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 
@@ -32,7 +32,7 @@ sed -i  "s/    uint K = .*/    uint K = $k;/" qrd_systolic_cordic_fixedpoint.cal
 sed -i  "s/    uint num_CORDIC_iterations = .*/    uint num_CORDIC_iterations = $i;/" qrd_systolic_cordic_fixedpoint.cal
 
 # 2. Generate C++ code from CAL code
-streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path qrd_systolic_cordic_fixedpoint.cal --target-path myproject qrd.Top
+streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path qrd_systolic_cordic_fixedpoint.cal --target-path myproject qrd.TopCapped
 
 # If you want to use the randInt function to generate the source actors, comment out the
 # "streamblocks multicore ..." line above and uncomment the next 6 lines, see comments in
@@ -54,7 +54,7 @@ cmake --build . -j24 2> /dev/null
 # 4. Execute the binary, send output of execution to stdout and a file
 filename=capture_k${k}_i${i}_Q${m}p${n}.txt
 cd ../bin
-./Top | tee ../../accuracy_results/$filename
+./TopCapped | tee ../../accuracy_results/$filename
 
 # 5. Verify results
 cd ../..

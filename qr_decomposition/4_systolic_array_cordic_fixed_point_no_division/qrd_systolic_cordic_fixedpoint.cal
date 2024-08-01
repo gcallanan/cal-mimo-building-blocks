@@ -568,10 +568,10 @@ namespace qrd:
      * @inputports r_in[ports_in_row] - Array of ports to collect r value from the PEs. One
      *                                  port is required per PE in the row.
      */
-    actor JoinerRowR(uint K, uint row_index, uint ports_in_row) int(size = m+n) r_in[ports_in_row] ==>:
+    actor JoinerRowR(uint K, uint row_index, uint ports_in_row) int(size = m+n) r_in[ports_in_row] ==> int(size = m+n) r_out:
         uint matrix_number := 0;
 
-        action r_in[0..ports_in_row-1]:[input] ==>
+        action r_in[0..ports_in_row-1]:[input] ==> r_out:[input] repeat ports_in_row
         do
             print("R"+matrix_number+": row " + row_index + ": ");
             if(row_index != 0) then
@@ -609,10 +609,10 @@ namespace qrd:
      * @inputports r_in[ports_in_row] - Array of ports to collect r value from the PEs. One
      *                                  port is required per PE in the row.
      */
-    actor JoinerRowQ(uint K, uint row_index) int(size = m+n) r_in[K] ==>:
+    actor JoinerRowQ(uint K, uint row_index) int(size = m+n) r_in[K] ==> int(size = m+n) q_out:
         uint matrix_number := 0;
 
-        action r_in[0..K-1]:[input] ==>
+        action r_in[0..K-1]:[input] ==> q_out:[input] repeat K
         do
             print("Q"+matrix_number+": row " + row_index + ": ");
             foreach uint index in 0..K-1 do
@@ -677,7 +677,7 @@ namespace qrd:
      * collect and output the Q and R matrices as the individual elements
      * are scattered around the Inner and Boundary actors
      */
-    network Top() ==>:
+    network Top() ==> int(size = m + n) R_matrix[K], int(size = m + n) Q_matrix[K]:
     var 
         function getInnerCellIndex(int row_index, int col_index) --> int : 
             (K*(K-1)/2) - (K-row_index)*((K-row_index)-1)/2 + col_index - row_index - 1 end
@@ -759,14 +759,14 @@ namespace qrd:
                 
                 // 2.2 Connect the actors in a column together
                 if r = K-1 then
-                    innerCells_q[r*K + c].x_out --> caps_x[c].In {bufferSize = buffer_size;};
+                    innerCells_q[r*K + c].x_out --> caps_x[c].In {bufferSize = 1;};
                 else
                     innerCells_q[r*K + c].x_out --> innerCells_q[(r+1)*K + c].x_in {bufferSize = buffer_size;};
                 end
  
                 // 2.3 Connect all actors in a row together
                 if(c = K-1) then
-                    innerCells_q[r*K + c].cordic_angles_out --> caps_cordic[r].In {bufferSize = buffer_size;};
+                    innerCells_q[r*K + c].cordic_angles_out --> caps_cordic[r].In {bufferSize = 1;};
                 else
                     innerCells_q[r*K + c].cordic_angles_out --> innerCells_q[r*K + c + 1].cordic_angles_in {bufferSize = buffer_size;};
                 end
@@ -774,8 +774,26 @@ namespace qrd:
                 // 2.4 Connect the generated Q matrix values to the joiner. The generated matrix is
                 // Q^T, so we connect each column to each joiner row to transpose back to Q
                 innerCells_q[r*K + c].r_out --> filters_q[r*K + c].In {bufferSize = filter_buffer_size;}; 
-                filters_q[r*K + c].Out --> joinersPerRow_q[c].r_in[r] {bufferSize = buffer_size;};
+                filters_q[r*K + c].Out --> joinersPerRow_q[c].r_in[r] {bufferSize = 1;};
             end
+        end
+
+        // 3. Connect joiners to output ports
+        foreach uint r in 0..K-1 do
+            joinersPerRow_q[r].q_out --> Q_matrix[r] {bufferSize = K;};
+            joinersPerRow_r[r].r_out --> R_matrix[r] {bufferSize = K;};
+        end
+    end
+
+    network TopCapped() ==> :
+    entities
+        top = Top();
+        caps_q=[Cap(index=0): for index in 0..K-1];
+        caps_r=[Cap(index=0): for index in 0..K-1];
+    structure
+        foreach uint r in 0..K-1 do
+            top.Q_matrix[r] --> caps_q[r].In {bufferSize = K;};
+            top.R_matrix[r] --> caps_r[r].In {bufferSize = K;};
         end
     end
 end
