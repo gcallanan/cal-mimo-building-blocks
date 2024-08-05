@@ -1,5 +1,6 @@
 #!/bin/bash
-echo "Compiling systolic array QR decomposition network to HDL"
+echo "Compiling systolic array QR decomposition network to HDL."
+echo "Builds and synthesizes the HDL Vivado project. Generates utilisation and timing reports."
 echo "This script takes in command line arguments:"
 echo " -k K (default 4) Set the dimensions of the A matrix to be decomposed. A is a KxK matrix"
 echo " -m M (default 3) Set the number of integer bits (including the sign bit) for Qm.n fixed point numbers"
@@ -12,6 +13,8 @@ echo " -o OUTPUT_DIRECTORY (default xc7z020clg484-1) FPGA Part number to build"
 
 set -e
 
+vivado_2023_project_dir=vivado_2023_project_dir
+topActor=Top
 # 1. Interpret command line arguments
 k=4
 m=3
@@ -21,8 +24,6 @@ l=-1
 clock_period_ns=10.0
 fpga=xc7z020clg484-1
 outputDirectory=myproject
-vivado_2023_project_dir=vivado_2023_project_dir
-topActor=Top
 while getopts k:m:n:i:l:c:f:o: flag
 do
     case "${flag}" in
@@ -54,6 +55,7 @@ bash $outputDirectory/scripts/generateSimpleHDLTestbenches_vivado2023.sh -f $fpg
 bash $outputDirectory/scripts/generateVivadoProjectAndSynthesize_vivado2023.sh -f $fpga -c $clock_period_ns -o $vivado_2023_project_dir
 
 # 4.1 Add a few extra testbench files to the project. Do this by generating a TCL script and running it in Vivado
+# Also generate a more detailed resource utilisation report and export it to a spreadsheet
 currentDir=`pwd`
 projDir=$currentDir/$outputDirectory/$vivado_2023_project_dir
 echo "

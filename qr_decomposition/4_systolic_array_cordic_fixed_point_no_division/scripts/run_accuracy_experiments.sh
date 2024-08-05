@@ -1,11 +1,13 @@
 #!/bin/bash
-echo "This script runs two mass experiements for the QR decomposition applications:"
+echo "This script runs two mass experiments for the QR decomposition applications:"
 echo "    1. It generates and colates results for different matrix sizes (K) and fixed point fractional precision."
 echo "       This allows us to see how the accuracy is affected as the matrix size grows"
 echo "    2. It generates and colates results for different CORDIC iterations(i) and fixed point fractional precision"
 echo "       this allows us to see how the number of CORDIC iterations impacts the accuracy of our final results"
 echo ""
-echo "The output of these scripts is placed in the results folder. There are .txt files that contain the raw error results for each execution of the QR program. Additionally csv files are generated that are collections of the errors for the different experiments in the same file to allow for easier analysis."
+echo "The output of these scripts is placed in the accuracy_results folder. There are .txt files that"
+echo "contain the raw error results for each execution of the QR program. Additionally csv files are generated that"
+echo "are collections of the errors for the different experiments in the same file to allow for easier analysis."
 echo ""
 
 set -e
