@@ -54,7 +54,7 @@ done
 
 echo "All experiments run. Now we combine these results into csv files"
 
-python3 scripts/generate_csv_from_experiments.py
+python3 scripts/generate_csv_from_accuracy_experiments.py
 
 echo "Worst case error results recorded in 'results/experiment_results_largest_error.csv'"
 echo "Average error results recorded in 'results/experiment_results_average_error.csv'"

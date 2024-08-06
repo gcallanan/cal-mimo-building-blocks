@@ -13,7 +13,7 @@ set -e
 start_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 
 
-k=2
+k=16
 n=19
 i=16
 m=3
