@@ -51,6 +51,8 @@ streamblocks vivado-hls --set experimental-network-elaboration=on --source-path 
 # 3. Generate HDL from the HLS files
 bash $outputDirectory/scripts/generateSimpleHDLTestbenches_vivado2023.sh -f $fpga -c $clock_period_ns
 
+sed -i  "s/launch_runs synth_1 -jobs 2/set_property strategy Flow_AreaOptimized_high [get_runs synth_1]\nlaunch_runs synth_1 -jobs 2/" $outputDirectory/scripts/$topActor.tcl.in
+
 # 4. Generate an HDL project from all the generated HLS and HDL files. This project goes through synthesis
 bash $outputDirectory/scripts/generateVivadoProjectAndSynthesize_vivado2023.sh -f $fpga -c $clock_period_ns -o $vivado_2023_project_dir
 

@@ -34,43 +34,43 @@ mkdir -p $experiment_directory
 mkdir -p $reports_directory
 
 # 1. First Experiment
-echo "Generating results for the first experiment:"
-index=1
-for fpga_index in `seq 1 1 $num_fpgas`; do
-    fpga_partno="${fpgas_partno[$fpga_index-1]}"
-    fpga_name="${fpgas_name[$fpga_index-1]}"
-    for clock_period_ns in "${clock_periods_ns[@]}"; do
-        for loop_unroll_factor in "${loop_unroll_factors[@]}"; do
-            echo "Experiment ${index}/${num_experiments}: FPGA: $fpga_name Clock: $clock_period_ns ns Unroll: $loop_unroll_factor"
-            
-            clock=`echo $clock_period_ns | tr . p`
-            project_name=build_k${k}_Q${m}p${n}_i${i}_${fpga_name}_clk${clock}
-            if [ $loop_unroll_factor -eq -1 ]; then
-                project_name=${project_name}_unrollNone
-            else
-                if [ $loop_unroll_factor -eq 0 ]; then
-                    project_name=${project_name}_unrollAll
-                else
-                    project_name=${project_name}_unroll${loop_unroll_factor}
-                fi
-            fi
-            project_directory=${experiment_directory}/$project_name
-            echo "    Output Folder: $project_directory/"
-            
-            logFileName=$project_directory.log
-            \time -f "%E" -o time.log bash compile_hardware.sh -k $k -m $m -n $n -i $i -c $clock_period_ns -l $loop_unroll_factor -f $fpga_partno -o $project_directory > $logFileName
-            cat time.log | sed 's/^/        Execution Time: /'
-            rm time.log
-
-            cp $project_directory/build/timing_summary.rpt $reports_directory/${project_name}_timing.rpt
-            cp $project_directory/build/report_utilization.rpt $reports_directory/${project_name}_utilisation.rpt
-
-            index=$(($index + 1))
-        done
-    done
-done
-echo "First Experiment Done"
-echo ""
+#echo "Generating results for the first experiment:"
+#index=1
+#for fpga_index in `seq 1 1 $num_fpgas`; do
+#    fpga_partno="${fpgas_partno[$fpga_index-1]}"
+#    fpga_name="${fpgas_name[$fpga_index-1]}"
+#    for clock_period_ns in "${clock_periods_ns[@]}"; do
+#        for loop_unroll_factor in "${loop_unroll_factors[@]}"; do
+#            echo "Experiment ${index}/${num_experiments}: FPGA: $fpga_name Clock: $clock_period_ns ns Unroll: $loop_unroll_factor"
+#            
+#            clock=`echo $clock_period_ns | tr . p`
+#            project_name=build_k${k}_Q${m}p${n}_i${i}_${fpga_name}_clk${clock}
+#            if [ $loop_unroll_factor -eq -1 ]; then
+#                project_name=${project_name}_unrollNone
+#            else
+#                if [ $loop_unroll_factor -eq 0 ]; then
+#                    project_name=${project_name}_unrollAll
+#                else
+#                    project_name=${project_name}_unroll${loop_unroll_factor}
+#                fi
+#            fi
+#            project_directory=${experiment_directory}/$project_name
+#            echo "    Output Folder: $project_directory/"
+#            
+#            logFileName=$project_directory.log
+#            \time -f "%E" -o time.log bash compile_hardware.sh -k $k -m $m -n $n -i $i -c $clock_period_ns -l $loop_unroll_factor -f $fpga_partno -o $project_directory > $logFileName
+#            cat time.log | sed 's/^/        Execution Time: /'
+#            rm time.log
+#
+#            cp $project_directory/build/timing_summary.rpt $reports_directory/${project_name}_timing.rpt
+#            cp $project_directory/build/report_utilization.rpt $reports_directory/${project_name}_utilisation.rpt
+#
+#            index=$(($index + 1))
+#        done
+#    done
+#done
+#echo "First Experiment Done"
+#echo ""
 
 # 2. Second Experiment
 echo "Generating results for the second experiment:"
@@ -79,15 +79,15 @@ reports_directory=$experiment_directory/reports
 mkdir -p $experiment_directory
 mkdir -p $reports_directory
 
-num_experiments=`seq 2 2 20 | wc -l`
-fpga_partno="${fpgas_partno[0]}"
-fpga_name="${fpgas_name[0]}"
+num_experiments=`seq 2 2 16 | wc -l`
+fpga_partno="${fpgas_partno[1]}"
+fpga_name="${fpgas_name[1]}"
 loop_unroll_factor="${loop_unroll_factors[0]}"
 clock_period_ns="${clock_periods_ns[0]}"
 clock=`echo $clock_period_ns | tr . p`
 
 index=1
-for k in `seq 2 2 20`; do
+for k in `seq 2 2 16`; do
     echo "Experiment ${index}/${num_experiments}: k=$k"
     project_name=build_k${k}_Q${m}p${n}_i${i}_${fpga_name}_clk${clock}_unrollNone
     project_directory=${experiment_directory}/$project_name
@@ -100,6 +100,8 @@ for k in `seq 2 2 20`; do
 
     cp $project_directory/build/timing_summary.rpt $reports_directory/${project_name}_timing.rpt
     cp $project_directory/build/report_utilization.rpt $reports_directory/${project_name}_utilisation.rpt
+
+    index=$(($index + 1))
 done
 echo "Second Experiment Done"
 echo ""

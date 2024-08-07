@@ -163,6 +163,26 @@ def collectParamExperimentResults():
             output_file.write("\n".join(filter_r_results)+ "\n")
 
 def collectScalingExperimentResults():
+    # 1. Generate csv files for the first experiment
+    # 1.1 Load the names of all the capture files in the results folder where the number of cordic iterations is 16
+    directory_string = "fpga_scaling_experiments/reports"
+    result_files_names = [f for f in os.listdir(directory_string) if os.path.isfile(os.path.join(directory_string, f)) and "_utilisation.rpt" in f]
+
+    k_values_not_unique_not_sorted = [int(f[f.find("_")+2:f.find("_",f.find("_")+2)]) for f in result_files_names]
+    k_values = list(dict.fromkeys(k_values_not_unique_not_sorted))
+    k_values.sort()
+
+    f = result_files_names[0]
+    m = int(f[f.find("_Q")+2:f.find("p",f.find("_Q"))])
+    i = int(f[f.find("_i")+2:f.find("_",f.find("_i")+2)])
+    n = int(f[f.find("p",f.find("_Q"))+1:f.find("_", f.find("p",f.find("_Q")))])
+    loop_unroll_factor = f[f.find("unroll")+6:f.find("_",f.find("unroll"))]
+    loop_unroll_factor = "1" if loop_unroll_factor == "None" else loop_unroll_factor
+    loop_unroll_factor = "1000" if loop_unroll_factor == "All" else loop_unroll_factor
+    loop_unroll_factor = int(loop_unroll_factor)
+    clock_period = float(f[f.find("clk")+3:f.find("_",f.find("clk"))].replace("p","."))
+    fpga_part = f[f.find("Zync"):f.find("_",f.find("Zync"))]
+    
     top_results=[]
     timing_violations_results=[]
     boundaryCells_results=[]
@@ -172,38 +192,34 @@ def collectScalingExperimentResults():
     filter_q_results=[]
     filter_r_results=[]
 
-    fpga_parts = [fpga_parts[0]]
-
     headings=""
-    for fpga_part in fpga_parts:
-        for loop_unroll_factor in loop_unroll_factors:
-            for clock_period in clock_periods:
-                timing_violations, headings, top, boundary, innerCell_q, innerCell_r, source, filter_q, filter_r, = processUtilisationReport(fpga_part, clock_period, loop_unroll_factor,m,n,k,i)
-                title=f"{fpga_part} Clock: {clock_period} ns Loop Unroll: {loop_unroll_factor}"
-                
-                line = title + "," + ",".join(top)
-                top_results.append(line)
+    for k in k_values:
+        timing_violations, headings, top, boundary, innerCell_q, innerCell_r, source, filter_q, filter_r, = processUtilisationReport(fpga_part, clock_period, loop_unroll_factor,m,n,k,i,directory_string)
+        title=f"k={k}"
 
-                line = title + "," + str(timing_violations)
-                timing_violations_results.append(line)
+        line = title + "," + ",".join(top)
+        top_results.append(line)
 
-                line = title + "," + ",".join(boundary)
-                boundaryCells_results.append(line)
+        line = title + "," + str(timing_violations)
+        timing_violations_results.append(line)
 
-                line = title + "," + ",".join(innerCell_q)
-                innerCell_q_results.append(line)
+        line = title + "," + ",".join(boundary)
+        boundaryCells_results.append(line)
 
-                line = title + "," + ",".join(innerCell_r)
-                innerCell_r_results.append(line)
+        line = title + "," + ",".join(innerCell_q)
+        innerCell_q_results.append(line)
 
-                line = title + "," + ",".join(source)
-                source_results.append(line)
+        line = title + "," + ",".join(innerCell_r)
+        innerCell_r_results.append(line)
 
-                line = title + "," + ",".join(filter_q)
-                filter_q_results.append(line)
+        line = title + "," + ",".join(source)
+        source_results.append(line)
 
-                line = title + "," + ",".join(filter_r)
-                filter_r_results.append(line)
+        line = title + "," + ",".join(filter_q)
+        filter_q_results.append(line)
+
+        line = title + "," + ",".join(filter_r)
+        filter_r_results.append(line)
 
     with open(f"{directory_string}/combined_results.csv", 'w') as output_file:
             output_file.write("Experiment Name,Timing Violations\n")
@@ -230,4 +246,4 @@ def collectScalingExperimentResults():
             output_file.write("Experiment Name," + ",".join(headings) + "\n")
             output_file.write("\n".join(filter_r_results)+ "\n")
 
-collectParamExperimentResults()
+collectScalingExperimentResults()
