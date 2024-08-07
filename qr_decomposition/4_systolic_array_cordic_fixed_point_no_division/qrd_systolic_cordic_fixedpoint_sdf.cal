@@ -135,6 +135,10 @@ namespace qrd:
     // buffers from the source actor to be > K (number of actor in the row). 
     uint source_buffer_size = buffer_size + K;
 
+    // The buffer size of the filters needs to be >K as the filter requires K tokens to be
+    // present in order to fire.
+    uint filter_buffer_size = buffer_size + K;
+
     // ==== Fixed Point Constants: Start ===
 
     // Fixed point number represented by Qm.n where m is the number of integer bits + sign bit
@@ -241,6 +245,9 @@ namespace qrd:
      *                         v                               s_out = s_in;
      *                       r_out
      *
+     * NOTE: Every action, results in r being output, however, r is only valid on the Kth action.
+     * We output this every action to preserve the single-action SDF properties of the actor.
+     * Later actors filter the tokens from this port so only every Kth token is used.
      *
      * @parameter  K - the number of rows and columns in the square matrix A.
      * @inputport  x_in - Input port connected to above element in systolic array.
@@ -249,16 +256,15 @@ namespace qrd:
      * @outputport x_out - Output port connected to below element in systolic array.
      * @outputport c_out - Output port to send c value to the element to the right in systolic array.
      * @outputport s_out - Output port to send s value to the element to the right in systolic array.
-     * @outputport r_out - Output port to send the state variable r out. Is sent to joiner
+     * @outputport r_out - Output port to send the state variable r out. Is sent to filter and joiner
      *                     actors that are not part of the systolic array.
      */
     actor InnerCell(uint K) int(size = m+n) x_in, uint(size = num_CORDIC_iterations) cordic_angles_in ==> int(size = m+n) x_out, int(size = m+n) r_out, uint(size = num_CORDIC_iterations) cordic_angles_out:
         int(size = m+n) r := 0;
         uint count := 0;
         
-        action x_in:[x_in], cordic_angles_in:[rotation_angles]  ==> x_out:[x_out], cordic_angles_out:[rotation_angles]
-        guard
-            count < K
+        // NOTE: Mention on how r_out is not the best way always
+        action x_in:[x_in], cordic_angles_in:[rotation_angles]  ==> x_out:[x_out], r_out:[r], cordic_angles_out:[rotation_angles]
         var 
             int(size = m+n) x_out,
             int(size = m+n) x_j,
@@ -290,15 +296,11 @@ namespace qrd:
             x_out := fixedPointMultiply(k_CORDIC_constant, y_j);
             r := fixedPointMultiply(k_CORDIC_constant, x_j);
 
-            // 4. Track the number of processed samples
+            // Additional part of reset logic
             count := count + 1;
-        end
-
-        action ==> r_out:[r]
-        guard
-            count = K
-        do
-            count := 0;
+            if count = K then
+                count := 0;
+            end
         end
     end
 
@@ -336,21 +338,22 @@ namespace qrd:
      * y[end] ~= 0 and x[end]~=K*sqrt(r^2 + x_in^2) where K = 1.6467602. By defining k = 1/K.
      * We can determine sqrt = k * x[end].
      *
+     * NOTE: Every action, results in r being output, however, r is only valid on the Kth action.
+     * We output this every action to preserve the single-action SDF properties of the actor.
+     * Later actors filter the tokens from this port so only every Kth token is used.
      *
      * @parameter  K - the number of rows and columns in the square matrix A.
      * @inputport  x_in - Input port connected to above element in systolic array.
      * @outputport c_out - Output port to send c value to the element to the right in systolic array.
      * @outputport s_out - Output port to send s value to the element to the right in systolic array.
-     * @outputport r_out - Output port to send the state variable r out. Is sent to joiner
+     * @outputport r_out - Output port to send the state variable r out. Is sent to filter and joiner
      *                     actors that are not part of the systolic array.
      */
     actor BoundaryCell(uint K) int(size = m+n) x_in ==> int(size = m+n) r_out, uint(size = num_CORDIC_iterations) cordic_angles_out:
         int(size = m+n) r := 0;
         uint count := 0;
         
-        action x_in:[x_in]  ==> cordic_angles_out:[rotation_angles]
-        guard
-            count < K
+        action x_in:[x_in]  ==> r_out:[r], cordic_angles_out:[rotation_angles]
         var
             int(size = m+n) x_j,
             int(size = m+n) x_j_plus_1,
@@ -360,11 +363,11 @@ namespace qrd:
             uint(size = 1) y_j_msb,
             uint(size = num_CORDIC_iterations) rotation_angles := 0
         do
-            // 1. Reset R after K firings
+            // 1. Reset at the start of new array
             if count = 0 then
                 r := 0;
             end
-
+            
             // 2. Apply CORDIC algorithm to determine sqrt values
             x_j := x_in;
             y_j := r;
@@ -392,18 +395,18 @@ namespace qrd:
                 y_j := y_j_plus_1;
             end
 
+            /*if(x_in < nearZeroBoundaryP and x_in > nearZeroBoundaryN) then
+                println("angles: " + rotation_angles);
+            end*/
+
             // Todo comment here
             r := fixedPointMultiply(x_j, k_CORDIC_constant);
 
             // 4. Track the number of processed samples
             count := count + 1;
-        end
-
-        action ==> r_out:[r]
-        guard
-            count = K
-        do
-            count := 0;
+            if count = K then
+                count := 0;
+            end
         end
     end
 
@@ -532,7 +535,7 @@ namespace qrd:
     end
 
     /**
-     * A joiner actor that collects the output from the systolic array to produce a
+     * A joiner actor that collects the filtered output from the systolic array to produce a
      * single row in the R matrix.
      *
      * This joiner just prints out the row as this is a demonstrative example. This can be modified
@@ -548,11 +551,11 @@ namespace qrd:
      * to the joiner:
      *         B         I         I                    JoinerRowR
      *         v         v         v                     actor
-     * r_out(1)| r_out(2)| r_out(3)\------->| print(    |
-     *         |         \----------------->|   r_out(1)|
-     *         \--------------------------->|   r_out(2)|
-     *                                      |   r_out(3)|
-     *                                      | )         |
+     * r_out(1)| r_out(2)| r_out(3)\--->|filter|>---->| print(    |
+     *         |         \---------->|filter|>------->|   r_out(1)|
+     *         \----------------->|filter|>---------->|   r_out(2)|
+     *                                                |   r_out(3)|
+     *                                                | )         |
      *
      * The number of ports in the joiner changes depending on the row, as each row generating R
      * has a dufferebt number of values.
@@ -590,7 +593,7 @@ namespace qrd:
     end
 
     /**
-     * A joiner actor that collects the output from the systolic array to produce a
+     * A joiner actor that collects the filtered output from the systolic array to produce a
      * single row in the Q matrix.
      *
      * This joiner just prints out the row as this is a demonstrative example. This can be modified
@@ -626,6 +629,26 @@ namespace qrd:
     end
 
     /**
+     * The inner and boundary PEs output their internal state every
+     * calculation, however only after K computations is that state equal
+     * to the value of Q and R matrices. This filter receives those state
+     * variables (1 filter per PE) and discards the first K-1 elements forwading
+     * the final one onwards as only that one is relevant.
+     *
+     * This filter is written in such a way as to presserve SDF properties.
+     * It has a single action with fixed production and consumption rates.
+     *
+     * @parameter  num_tokens_to_filter - The number of tokens to collect of
+     *                                    which only the last one will be kept.
+     *                                    (usually set to K).
+     * @outputport In - Port receiving tokens from the PE
+     * @outputport Out - Port outputing the remaining token after discarding the rest.
+     */
+    actor Filter(uint num_tokens_to_filter) int(size = m+n) In ==> int(size = m+n) Out:
+        action In:[in_tokens] repeat num_tokens_to_filter ==> Out:[in_tokens[num_tokens_to_filter-1]] end
+    end
+
+    /**
      * This actor is mean to be attached to unused output ports, consuming tokens from the FIFO
      * to prevent the buffers filling up and the pipelining stalling. I do not know if these are 
      * actually necessary in all cases but some CAL backends we test with are not so mature
@@ -650,7 +673,7 @@ namespace qrd:
      * These A and I matrices are fed into the Inner and Boundary PE actors making up
      * the core processing portion of the algorithm.
      *
-     * The network also has a joiner actors to
+     * The network also has a joiner actors with attached filters to
      * collect and output the Q and R matrices as the individual elements
      * are scattered around the Inner and Boundary actors
      */
@@ -670,6 +693,9 @@ namespace qrd:
         
         // Output Actors: Actors that assemble the Q and R matrices produced from the boundary and
         // inner cells for printing out.
+        filters_r_boundary = [Filter(num_tokens_to_filter=K): for index in 0..K-1];
+        filters_r_inner = [Filter(num_tokens_to_filter=K): for index in 0..(K-1)*(K)/2-1];
+        filters_q = [Filter(num_tokens_to_filter=K): for index in 0..(K)*(K)-1 ];
         joinersPerRow_r=[JoinerRowR(K=K, row_index=index, ports_in_row=(K-index)): for index in 0..K-1];
         joinersPerRow_q=[JoinerRowQ(K=K, row_index=index): for index in 0..K-1];
 
@@ -704,7 +730,8 @@ namespace qrd:
                         innerCells_r[getInnerCellIndex(r,c)].x_out --> innerCells_r[getInnerCellIndex(r+1,c)].x_in {bufferSize = buffer_size;};
                     end
 
-                    innerCells_r[getInnerCellIndex(r,c)].r_out --> joinersPerRow_r[r].r_in[c-r] {bufferSize = 1;};
+                    innerCells_r[getInnerCellIndex(r,c)].r_out --> filters_r_inner[getInnerCellIndex(r,c)].In {bufferSize = filter_buffer_size;};
+                    filters_r_inner[getInnerCellIndex(r,c)].Out --> joinersPerRow_r[r].r_in[c-r] {bufferSize = 1;};
                 end
 
                 // 1.3 Connect all the boundary cell output ports to their respective input ports
@@ -715,7 +742,8 @@ namespace qrd:
                         boundaryCells[r].cordic_angles_out --> innerCells_r[getInnerCellIndex(r,c+1)].cordic_angles_in {bufferSize = buffer_size;};
                     end
 
-                    boundaryCells[r].r_out -->  joinersPerRow_r[r].r_in[0] {bufferSize = 1;};
+                    boundaryCells[r].r_out --> filters_r_boundary[r].In {bufferSize = filter_buffer_size;};
+                    filters_r_boundary[r].Out --> joinersPerRow_r[r].r_in[0] {bufferSize = 1;};
                 end
 
             end
@@ -745,7 +773,8 @@ namespace qrd:
 
                 // 2.4 Connect the generated Q matrix values to the joiner. The generated matrix is
                 // Q^T, so we connect each column to each joiner row to transpose back to Q
-                innerCells_q[r*K + c].r_out --> joinersPerRow_q[c].r_in[r] {bufferSize = 1;};
+                innerCells_q[r*K + c].r_out --> filters_q[r*K + c].In {bufferSize = filter_buffer_size;}; 
+                filters_q[r*K + c].Out --> joinersPerRow_q[c].r_in[r] {bufferSize = 1;};
             end
         end
 
