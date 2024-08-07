@@ -5,8 +5,8 @@ capture.txt
 *results*/
 __pycache__/
 time.log
-fpga_param_experiments/
-fpga_scaling_experiments/
-fpga_experiments/
+fpga_param_experiments*/
+fpga_scaling_experiments*/
+fpga_experiments*/
 vivado*
 addMoreTestbenchesToProject.tcl
