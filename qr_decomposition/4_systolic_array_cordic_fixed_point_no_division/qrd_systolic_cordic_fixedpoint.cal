@@ -263,8 +263,10 @@ namespace qrd:
             int(size = m+n) x_out,
             int(size = m+n) x_j,
             int(size = m+n) x_j_plus_1,
+            int(size = m+n) x_j_shifted,
             int(size = m+n) y_j,
-            int(size = m+n) y_j_plus_1
+            int(size = m+n) y_j_plus_1,
+            int(size = m+n) y_j_shifted
         do
             // Reset R after K firings
             if count = 0 then
@@ -274,14 +276,18 @@ namespace qrd:
             x_j := x_in;
             y_j := r;
             foreach uint j in 0..num_CORDIC_iterations-1 do
+                //x_j >> j is same as 2^(-j) * x
+                y_j_shifted := (y_j >> j);
+                x_j_shifted := (x_j >> j);
+
                 if (rotation_angles >> j & 1) = 1 then
                     // phi_j = -1
-                    x_j_plus_1 := x_j + (y_j >> j);
-                    y_j_plus_1 := y_j - (x_j >> j);
+                    x_j_plus_1 := x_j + y_j_shifted;
+                    y_j_plus_1 := y_j - x_j_shifted;
                 else
                     // phi_j = 1
-                    x_j_plus_1 := x_j - (y_j >> j);
-                    y_j_plus_1 := y_j + (x_j >> j);
+                    x_j_plus_1 := x_j - y_j_shifted;
+                    y_j_plus_1 := y_j + x_j_shifted;
                 end
                 x_j := x_j_plus_1;
                 y_j := y_j_plus_1;
@@ -354,10 +360,10 @@ namespace qrd:
         var
             int(size = m+n) x_j,
             int(size = m+n) x_j_plus_1,
+            int(size = m+n) x_j_shifted,
             int(size = m+n) y_j,
             int(size = m+n) y_j_plus_1,
-            uint(size = 1) x_j_msb,
-            uint(size = 1) y_j_msb,
+            int(size = m+n) y_j_shifted,
             uint(size = num_CORDIC_iterations) rotation_angles := 0
         do
             // 1. Reset R after K firings
@@ -370,23 +376,21 @@ namespace qrd:
             y_j := r;
 
             foreach uint j in 0..num_CORDIC_iterations-1 do
-                // Bitshift is the same as /2 in this case
-                x_j_msb := x_j >> (n + m -1);
-                y_j_msb := y_j >> (n + m -1);
+                //x_j >> j is same as 2^(-j) * x
+                y_j_shifted := (y_j >> j);
+                x_j_shifted := (x_j >> j);
                 // To determine phi_j, find sign of x_j * y_j. To avoid
-                // more expensive multiplication, we just check the sign bits
+                // more expensive multiplication, we just check the sign
                 // of both variables
-                if(x_j_msb = 0 and y_j_msb = 0 or x_j_msb != 0 and y_j_msb != 0) then
+                if(x_j > 0 and y_j > 0 or x_j < 0 and y_j < 0) then
                     // phi_j = -1; Adjusted equations to account for this
-                    // x >> j is equivalent to 2^(-j) * x
-                    x_j_plus_1 := x_j + (y_j >> j);
-                    y_j_plus_1 := y_j - (x_j >> j);
+                    x_j_plus_1 := x_j + y_j_shifted;
+                    y_j_plus_1 := y_j - x_j_shifted;
                     rotation_angles := rotation_angles | (1 << j);
                 else
                     // phi_j = +1; Adjusted equations to account for this
-                    // x >> j is equivalent to 2^(-j) * x
-                    x_j_plus_1 := x_j - (y_j >> j);
-                    y_j_plus_1 := y_j + (x_j >> j);
+                    x_j_plus_1 := x_j - y_j_shifted;
+                    y_j_plus_1 := y_j + x_j_shifted;
                 end
                 x_j := x_j_plus_1;
                 y_j := y_j_plus_1;
