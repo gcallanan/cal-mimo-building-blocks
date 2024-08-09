@@ -755,8 +755,8 @@ namespace qrd:
 
         // 3. Connect joiners to output ports
         foreach uint r in 0..K-1 do
-            joinersPerRow_q[r].q_out --> Q_matrix[r] {bufferSize = K;};
-            joinersPerRow_r[r].r_out --> R_matrix[r] {bufferSize = K;};
+            joinersPerRow_q[r].q_out --> Q_matrix[r] {bufferSize = 1;};
+            joinersPerRow_r[r].r_out --> R_matrix[r] {bufferSize = 1;};
         end
     end
 

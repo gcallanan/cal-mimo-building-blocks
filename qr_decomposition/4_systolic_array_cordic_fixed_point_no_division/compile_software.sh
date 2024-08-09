@@ -42,7 +42,7 @@ streamblocks multicore --set experimental-network-elaboration=on --set reduction
 #  echo "Pull with 'git clone https://github.com/streamblocks/streamblocks-examples.git'"
 #  exit 1
 #fi
-#streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path qrd_systolic_cordic_fixedpoint.cal:streamblocks-examples/system --target-path myproject qrd.Top
+#streamblocks multicore --set experimental-network-elaboration=on --set reduction-algorithm=ordered-condition-checking --source-path qrd_systolic_cordic_fixedpoint.cal:streamblocks-examples/system --target-path myproject qrd.TopCapped
 # End of lines to uncomment
 
 # 3. Build the project binary

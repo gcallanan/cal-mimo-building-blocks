@@ -15,7 +15,7 @@ set -e
 start_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 
 echo "Starting experiments to measure accuracy when changing matrix size k and fixed point fractional size n"
-for k in `seq 4 2 16`; do  # This is the matrix size
+for k in `seq 2 2 16`; do  # This is the matrix size
     echo "K is set to $k. Running tests with n from 19 to 27"
     for n in `seq 19 2 27`; do # This is the number of fractional bits in the fixed point number
         echo "    Running test for K=$k, n=$n, m=3 and i=16 (m and i are fixed)."
@@ -36,7 +36,7 @@ echo ""
 echo "Starting experiments to measure accuracy when changing CORDIC iterations i and fixed point fractional size n"
 echo ""
 
-for i in `seq 8 4 32`; do  # This is the number of CORDIC iterations
+for i in `seq 8 4 28`; do  # This is the number of CORDIC iterations
     echo "i is set to $i. Running tests with n from 19 to 27:"
     for n in `seq 19 2 27`; do # This is the number of fractional bits in the fixed point number
         echo "    Running test for K=16, n=$n, m=3 and i=$i (k and m are fixed)."

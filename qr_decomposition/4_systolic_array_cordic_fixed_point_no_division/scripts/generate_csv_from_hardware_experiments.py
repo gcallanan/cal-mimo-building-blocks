@@ -1,6 +1,21 @@
 import os
-import time
+"""
+This is a very rough script. Every Vivado project in the fpga_scaling_experiments and 
+fpga_param_experiments directory contains a utilisation and timing report. This script
+analyses those reports and extract the resource utilisation of the different builds
+as well as checking if the build has timing violations. For each build the resource
+utilisation is converted to a csv file for easier reading. Additionally, the 
+utilisation across the different builds is stored in a generated csv file for easier comparison
 
+The generated csv containing the results for all the param experiments can be found in:
+    - fpga_param_experiments/reports/combined_results.csv
+Additionally, the csv per build for the param experiments can be found in
+    - fpga_param_experiments/reports/<project_name>_utilisation.csv
+The generated csv containing the results for all the scaling experiments can be found in:
+    - fpga_scaling_experiments/reports/combined_results.csv
+Additionally, the csv per build for the scaling experiments can be found in
+    - fpga_param_experiments/reports/<project_name>_utilisation.csv
+"""
 
 def generateFilePrefix(fpga_part, clock_period, loop_unroll_factor, m, n, k, i):
     clock=str(clock_period).replace(".","p")

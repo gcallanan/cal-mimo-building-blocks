@@ -3,14 +3,15 @@
        calculated the error in it.
 
 This script takes in a file containing the output produced from executing the
-network in qrd_systolic_cordic_fixedpoint.cal. It takes the integer values 
-for the A,Q and R matrices and interprets them as real values. It then 
+network in qrd_systolic_cordic_fixedpoint.cal. It takes the integer values
+for the A,Q and R matrices and interprets them as real values. It then
 multiplies Q and R together to calculate A again. From this it determines
 the error between the original A and the recalculated A.
 """
 import numpy as np
 import pandas as pd
 import argparse
+import itertools
 from typing import Tuple
 
 
@@ -36,7 +37,9 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="accuracy_result
 
    # The actor network can perform QR decomposition many times. We need to verify
    # that each of these produces relatively small errors
-   num_arrays = int(content[-1][1:content[-1].find(":")]) + 1
+   lrow=content[-1]
+   num_arrays = int(lrow[1:lrow.find(":")]) + 1
+   array_dimension=int(lrow[lrow.find("row ")+4][0:lrow.find(":")])
    highest_errors = []
    mean_errors = []
 
@@ -44,21 +47,43 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="accuracy_result
 
       # 2. Get the A,Q and R matrices from the read data, convert them from integers
       # to floating point numpy arrays.
-
+         
+      # This function in conjunction with itertools.takewhile stops searching the array
+      # when we reach the matrix past this one. This prevents unecessary searching.
+      def isLast(mat,line):
+         if(line.find(mat) == 0):
+            #print(line)
+            if(int(line[line.find("row ")+4][0:line.find(":")]) == array_dimension):
+               #print("Done")
+               return False
+         return True
+      
       # 2.1 Get A matrix
-      A_matrix_string = [x[x.rfind(":")+2:-2].split() for x in content if x[0:x.find(":")] == f"A{i}"]
-      A_matrix_fp = [[int(x)*(2**-n) for x in line] for line in A_matrix_string]
+      A_matrix_string = [x for x in itertools.takewhile(lambda line: isLast(f"A{i+1}",line), content) if x[0:x.find(":")] == f"A{i}"]
+      #A_matrix_string = [x for x in content if x[0:x.find(":")] == f"A{i}"]
+      A_matrix_fp = [[int(x)*(2**-n) for x in line[line.rfind(":")+2:-2].split()] for line in A_matrix_string]
       A_matrix_fp_np = np.array(A_matrix_fp)
 
       # 2.2 Get the R matrix
-      R_matrix_string = [x[x.rfind(":")+2:-2].split() for x in content if x[0:x.find(":")] == f"R{i}"]
-      R_matrix_fp = [[int(x)*(2**-n) for x in line] for line in R_matrix_string]
+      R_matrix_string = [x for x in itertools.takewhile(lambda line: isLast(f"R{i+1}",line), content) if x[0:x.find(":")] == f"R{i}"]
+      #R_matrix_string = [x for x in content if x[0:x.find(":")] == f"R{i}"]
+      R_matrix_fp = [[int(x)*(2**-n) for x in line[line.rfind(":")+2:-2].split()] for line in R_matrix_string]
       R_matrix_fp_np = np.array(R_matrix_fp)
 
       # 2.3 Get the Q matrix
-      Q_matrix_string = [x[x.rfind(":")+2:-2].split() for x in content if x[0:x.find(":")] == f"Q{i}"]
-      Q_matrix_fp = [[int(x)*(2**-n) for x in line] for line in Q_matrix_string]
+      Q_matrix_string = [x for x in itertools.takewhile(lambda line: isLast(f"Q{i+1}",line), content) if x[0:x.find(":")] == f"Q{i}"]
+      #Q_matrix_string = [x for x in content if x[0:x.find(":")] == f"Q{i}"]
+      Q_matrix_fp = [[int(x)*(2**-n) for x in line[line.rfind(":")+2:-2].split()] for line in Q_matrix_string]
       Q_matrix_fp_np = np.array(Q_matrix_fp)
+
+      # 2.4 Remove the extracted elements from R to reduce the size of the next search
+      # Searching from the front as the elements are mostly in order.
+      for x in A_matrix_string:
+         content.remove(x)
+      for x in Q_matrix_string:
+         content.remove(x)
+      for x in R_matrix_string:
+         content.remove(x)
 
       # 3. Multiply the Q and R matrix together to reconstruct the A matrix
       A_reconstructed = np.matmul(Q_matrix_fp_np, R_matrix_fp_np)
@@ -121,7 +146,7 @@ if(__name__ == "__main__"):
             )
    parser.add_argument('-n', '--fixed_point_n', type=int, default=19, help="Number of fractional bits n for Qm.n fixed point numer")
    parser.add_argument('-m', '--fixed_point_m', type=int, default=3, help="Number of integer bits m (including sign bit) for Qm.n fixed point number")
-   parser.add_argument('-f', '--input_file', type=str, default="accuracy_results/capture_k4_Q3p19.txt", help="Name of the file containing the results from the qrd_systolic_cordic_fixedpoint.cal file")
+   parser.add_argument('-f', '--input_file', type=str, default="accuracy_results/capture_k4_i16_Q3p19.txt", help="Name of the file containing the results from the qrd_systolic_cordic_fixedpoint.cal file")
    parser.add_argument('-s', '--suppress', help='Suppress all output from script except for the final maximum error number',
                      action='store_true')  # on/off flag
    args = parser.parse_args()

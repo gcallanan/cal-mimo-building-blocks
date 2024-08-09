@@ -1,7 +1,7 @@
 """
-This is a very rough script. It looks at all the captures in the results folder, gets the error
-value for each capture and then puts all the errors for the different captures into an csv file
-for easy comparision between the different captures.
+This is a very rough script. It looks at all the captures in the accuracy_results folder, gets the
+error value for each capture and then puts all the errors for the different captures into an csv
+file for easy comparision between the different captures.
 
 There are two different experiments available in the results file:
     1. Captures varying fixed point fractional component n and matrix size K.
@@ -56,7 +56,7 @@ for k in k_values:
         csv_row_average_case+=f"{average:.20f},"
         csv_row_worst_case+=f"{worst:.20f},"
         end = time.time()
-        print(f"\tProcessing Time: {end - start}")
+        print(f"\tProcessing Time: {end - start}. Accuracy Worst: {worst}, Average: {average}")
 
     csv_file_worst_contents.append(csv_row_worst_case)
     csv_file_average_contents.append(csv_row_average_case)
@@ -101,6 +101,8 @@ for i in i_values:
         worst,average = error_checker.runErrorChecker(m,n,file_name,True)
         csv_row_average_case+=f"{average:.20f},"
         csv_row_worst_case+=f"{worst:.20f},"
+        end = time.time()
+        print(f"\tProcessing Time: {end - start}. Accuracy Worst: {worst}, Average: {average}")
 
     csv_file_worst_contents.append(csv_row_worst_case)
     csv_file_average_contents.append(csv_row_average_case)
