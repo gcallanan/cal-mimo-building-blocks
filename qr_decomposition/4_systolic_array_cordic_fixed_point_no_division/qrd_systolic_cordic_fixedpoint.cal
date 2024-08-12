@@ -275,7 +275,7 @@ namespace qrd:
 
             x_j := x_in;
             y_j := r;
-            foreach uint j in 0..num_CORDIC_iterations-1 do
+            foreach uint(size=8) j in 0..num_CORDIC_iterations-1 do
                 //x_j >> j is same as 2^(-j) * x
                 y_j_shifted := (y_j >> j);
                 x_j_shifted := (x_j >> j);
@@ -375,7 +375,7 @@ namespace qrd:
             x_j := x_in;
             y_j := r;
 
-            foreach uint j in 0..num_CORDIC_iterations-1 do
+            foreach uint(size=8) j in 0..num_CORDIC_iterations-1 do
                 //x_j >> j is same as 2^(-j) * x
                 y_j_shifted := (y_j >> j);
                 x_j_shifted := (x_j >> j);
@@ -449,7 +449,7 @@ namespace qrd:
             List(type:int(size = m+n), size = K) output
         do
             print("A"+matrix_number+": row " + row_index + ": ");
-            foreach uint index in 0..K-1 do
+            foreach uint(size=8) index in 0..K-1 do
 
                 // ======= Generated Source Value: Start =======
 
@@ -576,11 +576,11 @@ namespace qrd:
         do
             print("R"+matrix_number+": row " + row_index + ": ");
             if(row_index != 0) then
-                foreach uint index in 0..(K-ports_in_row)-1 do
+                foreach uint(size=8) index in 0..(K-ports_in_row)-1 do
                     print("0 ");
                 end
             end
-            foreach uint index in 0..ports_in_row-1 do
+            foreach uint(size=8) index in 0..ports_in_row-1 do
                 // Uncomment these two lines if you want to print the value
                 // interpreted as a real value instead of as an integer
                 // printFixedPoint(input[index]);
@@ -616,7 +616,7 @@ namespace qrd:
         action r_in[0..K-1]:[input] ==> q_out:[input] repeat K
         do
             print("Q"+matrix_number+": row " + row_index + ": ");
-            foreach uint index in 0..K-1 do
+            foreach uint(size=8) index in 0..K-1 do
                 // Uncomment these two lines if you want to print the value
                 // interpreted as a real value instead of as an integer
                 // printFixedPoint(input[index]);
@@ -665,6 +665,7 @@ namespace qrd:
     entities
         // Input Actors: Actors that generate input data
         source = Source(K=K);
+        //iGeneratorSource=[IGenerator(col_index=index, K=K): for index in 0..K-1];
         iGenerator=[IGenerator(col_index=index, K=K): for index in 0..K-1];
         
         // Processing Actors: Actors that perform the actual QR decomposition
@@ -688,10 +689,12 @@ namespace qrd:
                 // 1.1 Connect the source actor to the network
                 if r=0 && c=0 then
                     source.Out[0] --> boundaryCells[0].x_in {bufferSize = source_buffer_size;};
+                    //iGeneratorSource[0].Out --> boundaryCells[0].x_in {bufferSize = source_buffer_size;};
                 end
 
                 if r=0 && c!=0 then
                     source.Out[c] --> innerCells_r[c-1].x_in {bufferSize = source_buffer_size;};
+                    //iGeneratorSource[c].Out --> innerCells_r[c-1].x_in {bufferSize = source_buffer_size;};
                 end
 
                 // 1.2 Connect all the inner cell output ports to their respective input ports

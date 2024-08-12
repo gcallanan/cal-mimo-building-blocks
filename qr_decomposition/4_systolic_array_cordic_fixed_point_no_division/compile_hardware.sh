@@ -46,6 +46,7 @@ sed -i  "s/    uint num_CORDIC_iterations = .*/    uint num_CORDIC_iterations = 
 
 # 2. Compile the CAL project to a mixture  Vitis HLS and HDL
 streamblocks vivado-hls --set experimental-network-elaboration=on --source-path qrd_systolic_cordic_fixedpoint.cal --set foreach-loop-unroll-factor-hls=$l --target-path $outputDirectory qrd.$topActor
+#streamblocks vivado-hls --set experimental-network-elaboration=on --source-path qrd_systolic_cordic_fixedpoint.cal --set arbitrary-precision-integers=on --set foreach-loop-unroll-factor-hls=$l --target-path $outputDirectory qrd.$topActor
 #streamblocks vivado-hls --set experimental-network-elaboration=on --set bypass-AM-generation=on --source-path qrd_systolic_cordic_fixedpoint.cal --target-path myproject qrd.Top
 
 # 3. Generate HDL from the HLS files

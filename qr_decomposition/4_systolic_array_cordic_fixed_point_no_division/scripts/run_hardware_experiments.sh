@@ -22,7 +22,7 @@ m=3
 fpgas_partno=('xczu7ev-ffvf1517-1-i' 'xc7z020clg484-1')
 fpgas_name=('ZyncUltrascalePlus'  'Zync7000')
 clock_periods_ns=('10.0' '5.0' '3.3')
-loop_unroll_factors=('-1' '0' '2' '4' '8')
+loop_unroll_factors=('-1' '0' '2' '4')
 
 
 num_fpgas=${#fpgas_partno[@]}

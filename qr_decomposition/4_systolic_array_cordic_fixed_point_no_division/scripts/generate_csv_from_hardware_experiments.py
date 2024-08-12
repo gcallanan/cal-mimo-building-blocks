@@ -119,8 +119,6 @@ def collectParamExperimentResults():
     filter_q_results=[]
     filter_r_results=[]
 
-    fpga_parts = [fpga_parts[0]]
-
     headings=""
     for fpga_part in fpga_parts:
         for loop_unroll_factor in loop_unroll_factors:
@@ -151,6 +149,7 @@ def collectParamExperimentResults():
 
                 line = title + "," + ",".join(filter_r)
                 filter_r_results.append(line)
+
 
     with open(f"{directory_string}/combined_results.csv", 'w') as output_file:
             output_file.write("Experiment Name,Timing Violations\n")
@@ -261,4 +260,5 @@ def collectScalingExperimentResults():
             output_file.write("Experiment Name," + ",".join(headings) + "\n")
             output_file.write("\n".join(filter_r_results)+ "\n")
 
+collectParamExperimentResults()
 collectScalingExperimentResults()

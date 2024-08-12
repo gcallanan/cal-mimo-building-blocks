@@ -35,27 +35,34 @@ There are a number of different QR implementations found [here](qr_decomposition
 These 4 projects build on top of each other with the fourth project (Fixed Point Systolic Array Implementation with complete CORDIC and DDF) being the final and the most maintained version. It has the most supporting documentation and error checking scripts, so it is okay to just go straight to that version if you are not 
 interested in seeing the progression.
 
+The 4th implementations in this list is the most up to date and should be the one referred to for 
+
 ### 1. Systolic Array Implementation
 
-The [Systolic Array Implementation](qr_decomposition/1_systolic_array/) 
+The first implementation is titled the [Systolic Array Implementation](qr_decomposition/1_systolic_array/). This is the canonical systolic array implementation for QR decomposition. It makes use of floating point representation as well as sqrt and division operations.
 
-Describe
+This is a single action per actor implementation
 
 ### 2. Systolic Array Implementation with CORDIC
 
-[link](qr_decomposition/2_systolic_cordic/)
+The [Systolic Array Implementation with CORDIC](qr_decomposition/2_systolic_cordic/) implementation gets rid of the expensive sqrt operations by partially implementing the CORDIC rotations method (partial as divisions are
+not excluded yet). Floating point numbers are still used.
 
-Describe
+This is a single action per actor implementation
 
 ### 3. Fixed Point Systolic Array Implementation with CORDIC
 
-[link](qr_decomposition/3_systolic_cordic_fixedpoint/)
+The [Fixed Point Systolic Array Implementation with CORDIC](qr_decomposition/3_systolic_cordic_fixedpoint/) implementation gets rid of the floating point numbers and replaces them with fixed point numbers. Everything else is very similar to the 
 
-Describe
+This is a single action per actor implementation
 
 ### 4. Fixed Point Systolic Array Implementation with complete CORDIC and DDF
 
-Mention how this is the most up to date version
+The [Fixed Point Systolic Array Implementation with complete CORDIC and DDF](qr_decomposition/4_systolic_array_cordic_fixed_point_no_division) fully implements the CORDIC algorithm eliminating all division opertaions.
 
-[link](qr_decomposition/4_systolic_array_cordic_fixed_point_no_division)
+Actors can now have multiple actions which reduces the resource requirements of the implementation quite a bit.
+
+NOTE: This is the most up to date version of this project and should be looked at first as it has many supporting scripts and documents.
+
+
 
