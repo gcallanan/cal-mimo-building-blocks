@@ -1,12 +1,8 @@
-# Fixed-Point QR Decomposition using Givens Rotations and the CORDIC algorithm on a Systolic Array using Dataflow
+# Fixed-Point QR Decomposition using Givens Rotations and the CORDIC algorithm on a Systolic Array using Dataflow for non-square sized matrices.
 
 ## Introduction
 
-A parametric systolic array implementation of QR decomposition using the Givens Rotations method written in the CAL actor language. All numbers are represented in fixed point format and square root . The file implementing this application is the [qrd_systolic_cordic_fixedpoint.cal](qrd_systolic_cordic_fixedpoint.cal) file. This file has lots of comments and references explaining the theory and implementation. Please see that file that file first to understand what is going on here.
-
-There are two other versions of the program in this folder that can be mostly ignored:
-1. [qrd_systolic_cordic_fixedpoint_sdf.cal](qrd_systolic_cordic_fixedpoint_sdf.cal) - An implementation where each actor only performs a single action. This is a very specific version of SDF. It requires extra filter actors to accomplish this and as such consumes many more resources. Was intended to be used with an experimental version of streamblocks that only supported single action actors.
-2. [qrd_systolic_partial_cordic_fixedpoint_ddf.cal](qrd_systolic_partial_cordic_fixedpoint_ddf.cal) - An implementation similar to the one found in [3_systolic_cordic_fixedpoint](../3_systolic_cordic_fixedpoint) just modified so that it is now a DDF actor network without the filter actors. Additionally, the division operation in the boundary actors have been split into seperate actors to try to reduce the critical path length. 
+A parametric systolic array implementation of QR decomposition using the Givens Rotations method written in the CAL actor language. All numbers are represented in fixed point format and square root . The file implementing this application is the [qrd_systolic_cordic_fixedpoint.cal](qrd_systolic_cordic_fixedpoint.cal) file. This file has lots of comments and references explaining the theory and implementation. Please see that file that file first to understand what is going on here. Previous implementations supported square KxK sized A matrices. This implementation supports rectangular MxN sized A matrices.
 
 ## Requirements
 

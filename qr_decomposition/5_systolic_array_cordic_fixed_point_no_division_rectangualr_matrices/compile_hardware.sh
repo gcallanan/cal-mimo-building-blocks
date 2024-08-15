@@ -2,9 +2,9 @@
 echo "Compiling systolic array QR decomposition network to HDL."
 echo "Builds and synthesizes the HDL Vivado project. Generates utilisation and timing reports."
 echo "This script takes in command line arguments:"
-echo " -k K (default 4) Set the dimensions of the A matrix to be decomposed. A is a KxK matrix"
-echo " -m M (default 3) Set the number of integer bits (including the sign bit) for Qm.n fixed point numbers"
-echo " -n M (default 19) Set the number of fractional bits for Qm.n fixed point numbers"
+echo " -M M (default 4) Set the dimensions of the A matrix to be decomposed. A is a MxN matrix"
+echo " -N N (default 4) Set the dimensions of the A matrix to be decomposed. A is a MxN matrix"
+echo " -n fractional_bits (default 19) Set the number of fractional bits for Qm.n fixed point numbers"
 echo " -i I (default 16) Set the number of iterations in the CORDIC process"
 echo " -c C (default 10.0) FPGA Clock Period in nanoseconds"
 echo " -l L (default -1) Loop unroll factor. -1 for disabled, 0 for as much as possible."
@@ -16,7 +16,8 @@ set -e
 vivado_2023_project_dir=vivado_2023_project_dir
 topActor=Top
 # 1. Interpret command line arguments
-k=4
+M=4
+N=4
 m=3
 n=19
 i=16
@@ -24,10 +25,11 @@ l=-1
 clock_period_ns=10.0
 fpga=xc7z020clg484-1
 outputDirectory=myproject
-while getopts k:m:n:i:l:c:f:o: flag
+while getopts k:m:n:i:l:c:f:o:M:N: flag
 do
     case "${flag}" in
-        k) k=${OPTARG};;
+        M) M=${OPTARG};;
+        N) N=${OPTARG};;
         m) m=${OPTARG};;
         n) n=${OPTARG};;
         i) i=${OPTARG};;
@@ -41,7 +43,8 @@ done
 current_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 # 1.1 Set the m,n and k values in the qrd_systolic_cordic_fixedpoint.cal file
 bash scripts/change_fixed_point_format.sh $m $n
-sed -i  "s/    uint K = .*/    uint K = $k;/" qrd_systolic_cordic_fixedpoint.cal
+sed -i  "s/    uint M = .*/    uint M = $M;/" qrd_systolic_cordic_fixedpoint.cal
+sed -i  "s/    uint N = .*/    uint N = $N;/" qrd_systolic_cordic_fixedpoint.cal
 sed -i  "s/    uint num_CORDIC_iterations = .*/    uint num_CORDIC_iterations = $i;/" qrd_systolic_cordic_fixedpoint.cal
 
 # 2. Compile the CAL project to a mixture  Vitis HLS and HDL

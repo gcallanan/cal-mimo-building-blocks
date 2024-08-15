@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "This script runs two mass experiments for the QR decomposition applications:"
-echo "    1. It generates and colates results for different matrix sizes (K) and fixed point fractional precision."
+echo "    1. It generates and colates results for different matrix sizes (K*K) and fixed point fractional precision."
 echo "       This allows us to see how the accuracy is affected as the matrix size grows"
 echo "    2. It generates and colates results for different CORDIC iterations(i) and fixed point fractional precision"
 echo "       this allows us to see how the number of CORDIC iterations impacts the accuracy of our final results"
@@ -14,7 +14,7 @@ set -e
 
 start_date_time="`date +%Y-%m-%dT%H:%M:%S`";
 
-echo "Starting experiments to measure accuracy when changing matrix size k and fixed point fractional size n"
+echo "Starting experiments to measure accuracy when changing matrix size KxK and fixed point fractional size n"
 for k in `seq 2 2 16`; do  # This is the matrix size
     echo "K is set to $k. Running tests with n from 19 to 27"
     for n in `seq 19 2 27`; do # This is the number of fractional bits in the fixed point number
@@ -23,7 +23,7 @@ for k in `seq 2 2 16`; do  # This is the matrix size
         # the accuracy of the generated results. Additionally we add tabs to that line and then
         # display it. We suppress the rest of the output from the script as it makes it hard
         # to keep track with our progress
-        \time -f "%E" -o time.log bash compile_software.sh -k $k -m 3 -n $n -i 16 | tail -n 4 | head -n 1 | sed 's/^/        /'
+        \time -f "%E" -o time.log bash compile_software.sh -M $k -N $k -m 3 -n $n -i 16 | tail -n 4 | head -n 1 | sed 's/^/        /'
         
         # Print the execution time of the script
         cat time.log | sed 's/^/        Execution Time: /'
@@ -44,7 +44,7 @@ for i in `seq 8 4 28`; do  # This is the number of CORDIC iterations
         # the accuracy of the generated results. Additionally we add tabs to that line and then
         # display it. We suppress the rest of the output from the script as it makes it hard
         # to keep track with our progress
-        \time -f "%E" -o time.log bash compile_software.sh -k 16 -m 3 -n $n -i $i | tail -n 4 | head -n 1 | sed 's/^/        /'
+        \time -f "%E" -o time.log bash compile_software.sh -M 16 -N 16 -m 3 -n $n -i $i | tail -n 4 | head -n 1 | sed 's/^/        /'
         
         # Print the execution time of the script
         cat time.log | sed 's/^/        Execution Time: /'

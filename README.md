@@ -62,6 +62,10 @@ The [Fixed Point Systolic Array Implementation with complete CORDIC and DDF](qr_
 
 Actors can now have multiple actions which reduces the resource requirements of the implementation quite a bit.
 
+### Fixed-Point QR Decomposition using Givens Rotations and the CORDIC algorithm on a Systolic Array using Dataflow for non-square sized matrices.
+
+The [Fixed-Point QR Decomposition using Givens Rotations and the CORDIC algorithm on a Systolic Array using Dataflow for non-square sized matrices](qr_decomposition/5_systolic_array_cordic_fixed_point_no_division_rectangualr_matrices/) is the implementation in 4 above extended to support non-square matrices (MxN matrices).
+
 NOTE: This is the most up to date version of this project and should be looked at first as it has many supporting scripts and documents.
 
 

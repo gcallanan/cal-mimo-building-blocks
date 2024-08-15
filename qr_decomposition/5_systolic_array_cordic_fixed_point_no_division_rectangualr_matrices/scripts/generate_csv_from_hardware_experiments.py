@@ -17,14 +17,14 @@ Additionally, the csv per build for the scaling experiments can be found in
     - fpga_param_experiments/reports/<project_name>_utilisation.csv
 """
 
-def generateFilePrefix(fpga_part, clock_period, loop_unroll_factor, m, n, k, i):
+def generateFilePrefix(fpga_part, clock_period, loop_unroll_factor, m, n, M,N, i):
     clock=str(clock_period).replace(".","p")
     unrollName = "None" if loop_unroll_factor == 1 else "All" if loop_unroll_factor == 1000 else loop_unroll_factor
-    filePrefix = f"build_k{k}_Q{m}p{n}_i{i}_{fpga_part}_clk{clock}_unroll{unrollName}"
+    filePrefix = f"build_M{k}_N{k}_Q{m}p{n}_i{i}_{fpga_part}_clk{clock}_unroll{unrollName}"
     return filePrefix
 
-def processUtilisationReport(fpga_part, clock_period, loop_unroll_factor, m, n, k, i, directory_string):
-    filePrefix=generateFilePrefix(fpga_part, clock_period, loop_unroll_factor, m, n, k, i)
+def processUtilisationReport(fpga_part, clock_period, loop_unroll_factor, m, n, M,N, i, directory_string):
+    filePrefix=generateFilePrefix(fpga_part, clock_period, loop_unroll_factor, m, n, M,N, i)
     filePath_util = f"{directory_string}/{filePrefix}_utilisation.rpt"
     filePath_timing = f"{directory_string}/{filePrefix}_timing.rpt"
   
@@ -105,7 +105,8 @@ def collectParamExperimentResults():
     loop_unroll_factors.sort()
 
     f = result_files_names[0]
-    k = int(f[f.find("k")+1:f.find("_",f.find("k"))])
+    M = int(f[f.find("M")+1:f.find("_",f.find("M"))])
+    N = int(f[f.find("N")+1:f.find("_",f.find("N"))])
     m = int(f[f.find("_Q")+2:f.find("p",f.find("_Q"))])
     i = int(f[f.find("_i")+2:f.find("_",f.find("_i")+2)])
     n = int(f[f.find("p",f.find("_Q"))+1:f.find("_", f.find("p",f.find("_Q")))])
@@ -123,7 +124,7 @@ def collectParamExperimentResults():
     for fpga_part in fpga_parts:
         for loop_unroll_factor in loop_unroll_factors:
             for clock_period in clock_periods:
-                timing_violations, headings, top, boundary, innerCell_q, innerCell_r, source, filter_q, filter_r, = processUtilisationReport(fpga_part, clock_period, loop_unroll_factor,m,n,k,i,directory_string)
+                timing_violations, headings, top, boundary, innerCell_q, innerCell_r, source, filter_q, filter_r, = processUtilisationReport(fpga_part, clock_period, loop_unroll_factor,m,n,M,N,i,directory_string)
                 title=f"{fpga_part} Clock: {clock_period} ns Loop Unroll: {loop_unroll_factor}"
                 
                 line = title + "," + ",".join(top)
@@ -182,9 +183,9 @@ def collectScalingExperimentResults():
     directory_string = "fpga_scaling_experiments/reports"
     result_files_names = [f for f in os.listdir(directory_string) if os.path.isfile(os.path.join(directory_string, f)) and "_utilisation.rpt" in f]
 
-    k_values_not_unique_not_sorted = [int(f[f.find("_")+2:f.find("_",f.find("_")+2)]) for f in result_files_names]
-    k_values = list(dict.fromkeys(k_values_not_unique_not_sorted))
-    k_values.sort()
+    M_values_not_unique_not_sorted = [int(f[f.find("_")+2:f.find("_",f.find("_")+2)]) for f in result_files_names]
+    M_values = list(dict.fromkeys(M_values_not_unique_not_sorted))
+    M_values.sort()
 
     f = result_files_names[0]
     m = int(f[f.find("_Q")+2:f.find("p",f.find("_Q"))])
@@ -207,9 +208,9 @@ def collectScalingExperimentResults():
     filter_r_results=[]
 
     headings=""
-    for k in k_values:
-        timing_violations, headings, top, boundary, innerCell_q, innerCell_r, source, filter_q, filter_r, = processUtilisationReport(fpga_part, clock_period, loop_unroll_factor,m,n,k,i,directory_string)
-        title=f"k={k}"
+    for Mval in M_values:
+        timing_violations, headings, top, boundary, innerCell_q, innerCell_r, source, filter_q, filter_r, = processUtilisationReport(fpga_part, clock_period, loop_unroll_factor,m,n,Mval,Mval,i,directory_string)
+        title=f"k={Mval,Mval}"
 
         line = title + "," + ",".join(top)
         top_results.append(line)

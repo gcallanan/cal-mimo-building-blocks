@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "This script runs two mass experiments for the QR decomposition applications:"
-echo "    1. It builds the K=8 QR Algorithm for different FPGA models, clocks speeds and loop"
-echo "       unroll factors to see how timing and resource utilisation change with these parameters"
+echo "    1. It builds the K=8 (8x8 matrix) QR Algorithm for different FPGA models, clocks speeds"
+echo "       and loop unroll factors to see how timing and resource utilisation change with these parameters"
 echo "    2. It builds QR algorithm for different sizes of K to see how resource utilisation"
 echo "       and latency change as problem size increases"
 echo ""
@@ -44,7 +44,7 @@ for fpga_index in `seq 1 1 $num_fpgas`; do
             echo "Experiment ${index}/${num_experiments}: FPGA: $fpga_name Clock: $clock_period_ns ns Unroll: $loop_unroll_factor"
 
             clock=`echo $clock_period_ns | tr . p`
-            project_name=build_k${k}_Q${m}p${n}_i${i}_${fpga_name}_clk${clock}
+            project_name=build_M${k}_N${k}_Q${m}p${n}_i${i}_${fpga_name}_clk${clock}
             if [ $loop_unroll_factor -eq -1 ]; then
                 project_name=${project_name}_unrollNone
             else
@@ -89,12 +89,12 @@ clock=`echo $clock_period_ns | tr . p`
 index=1
 for k in `seq 2 2 16`; do
     echo "Experiment ${index}/${num_experiments}: k=$k"
-    project_name=build_k${k}_Q${m}p${n}_i${i}_${fpga_name}_clk${clock}_unrollNone
+    project_name=build_M${k}_N${k}_Q${m}p${n}_i${i}_${fpga_name}_clk${clock}_unrollNone
     project_directory=${experiment_directory}/$project_name
     echo "    Output Folder: $project_directory/"
 
     logFileName=$project_directory.log
-    \time -f "%E" -o time.log bash compile_hardware.sh -k $k -m $m -n $n -i $i -c $clock_period_ns -l $loop_unroll_factor -f $fpga_partno -o $project_directory > $logFileName
+    \time -f "%E" -o time.log bash compile_hardware.sh -M $k -N $k -m $m -n $n -i $i -c $clock_period_ns -l $loop_unroll_factor -f $fpga_partno -o $project_directory > $logFileName
     cat time.log | sed 's/^/        Execution Time: /'
     rm time.log
 
