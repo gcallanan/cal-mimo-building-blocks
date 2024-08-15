@@ -76,6 +76,12 @@ namespace qrd:
      * multiplications and bitshifts. It has also been extended to calculate square roots in certain
      * instances.
      *
+     * By implementing CORDIC on the inner actors, we can elimnate all division operations from 
+     * the boundary actors as we instead just pass bits from the boundary actor to the inner 
+     * actors indicating rotations to perform. The division is no longer necessary. The division
+     * is also very costly to implement in hardware and introduces quite a bit of latency. So its
+     * worth getting rid of this division.
+     *
      * I examined this article when implementing CORDIC:
      * "Fixed-Point CORDIC-Based QR Decomposition by Givens Rotations on FPGA," 2011 International
      * Conference on Reconfigurable Computing and FPGAs, Cancun, Mexico, 2011, pp. 327-332,
@@ -241,14 +247,31 @@ namespace qrd:
      *                         v                               s_out = s_in;
      *                       r_out
      *
+     * The CORDIC implementation of this actor allows for the elimination of sqrt and division 
+     * operations in the boundary actors. The s_in and c_in ports are replaced by cordic_angles_in 
+     * which is a bit string representing CORDIC rotation angle directions calculated in the 
+     * boundary actor. Using these angles, the iterative CORDIC algorithm is applied to determine 
+     * what to set r and x_out to. The equations are as follows:
+     *  x[j+1] = x[j] - phi[j]*2^(-j)*y[j];
+     *  y[j+1] = y[j] - phi[j]*2^(-j)*x[j];
+     * Where:
+     *  - 2^(-j) is just a power of 2 value that can be obtained by bit shifting to the right in
+     *    fixed point representation. (2^-j = 1 >> j)
+     *  - phi[j] = -1 if (cordic_rotation_angles_bitstring >> j & 1) = 1 or else it is 1
+     *  - y[0]=r
+     *  - x[0]=x_in
+     * This algorithm iterates "num_CORDIC_iterations" times. The number of iterations trades
+     * off throughput and latency for accuracy. After "num_CORDIC_iterations". The value of
+     * x[end]~=K*r and y[end]~=K*x_out where K = 1.6467602. By defining k = 1/K.
+     * We can determine x_out=k*y[end] and x and r=k*x[end]
      *
      * @parameter  K - the number of rows and columns in the square matrix A.
      * @inputport  x_in - Input port connected to above element in systolic array.
-     * @inputport  c_in - Input port for c value from element to the left in systolic array.
-     * @inputport  s_in - Input port for s value from element to the left in systolic array.
+     * @outputport cordic_angles_out - Inport port to receive the CORDIC bit string value from
+     *                                 the element to the right in systolic array.
      * @outputport x_out - Output port connected to below element in systolic array.
-     * @outputport c_out - Output port to send c value to the element to the right in systolic array.
-     * @outputport s_out - Output port to send s value to the element to the right in systolic array.
+     * @outputport cordic_angles_out - Output port to send the CORDIC bit string value to the
+     *                                 element to the right in systolic array.
      * @outputport r_out - Output port to send the state variable r out. Is sent to joiner
      *                     actors that are not part of the systolic array.
      */
@@ -338,15 +361,19 @@ namespace qrd:
      *  - y[0]=r
      *  - x[0]=x_in
      * This algorithm iterates "num_CORDIC_iterations" times. The number of iterations trades
-     * off throughput and latency for accuracy. After "num_CORDIC_iterations". The value of
+     * off throughput and latency for accuracy. After "num_CORDIC_iterations", the value of
      * y[end] ~= 0 and x[end]~=K*sqrt(r^2 + x_in^2) where K = 1.6467602. By defining k = 1/K.
-     * We can determine sqrt = k * x[end].
-     *
+     * We can determine sqrt = k * x[end]. Thus r = x[end]
+     * We keep track of whether phi[j] is positive or negative by storing the results in a bit
+     * string where a value of 1 at bit j from the left indicates that phi[j] is -1, and a value
+     * of 1 at bit j from the left indicates that phi[j] is -1. By passing this bit string on to
+     * a CORDIC implementation of the inner actors we no longer need to calculate the c_out and 
+     * s_out eliminating the need for the expensive division operations.
      *
      * @parameter  K - the number of rows and columns in the square matrix A.
      * @inputport  x_in - Input port connected to above element in systolic array.
-     * @outputport c_out - Output port to send c value to the element to the right in systolic array.
-     * @outputport s_out - Output port to send s value to the element to the right in systolic array.
+     * @outputport cordic_angles_out - Output port to send the CORDIC bit string value to the
+     *                                 element to the right in systolic array.
      * @outputport r_out - Output port to send the state variable r out. Is sent to joiner
      *                     actors that are not part of the systolic array.
      */
