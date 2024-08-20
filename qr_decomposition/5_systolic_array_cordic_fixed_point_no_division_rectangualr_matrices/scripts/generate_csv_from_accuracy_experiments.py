@@ -54,7 +54,7 @@ for Mval in M_values:
         file_name = directory_string + f"capture_M{Mval}_N{Mval}_i16_Q{m}p{n}.txt"
         print("\tLoading File From: " + file_name)
         start = time.time()
-        worst,average,sd = error_checker.runErrorChecker(m,n,file_name,True)
+        worst,average,sd = error_checker.runErrorChecker(m,n,file_name,True,False)
         csv_row_average_case+=f"{average:.20f},"
         csv_row_sd_case+=f"{sd:.20f},"
         csv_row_worst_case+=f"{worst:.20f},"
@@ -106,7 +106,7 @@ for i in i_values:
         file_name = directory_string + f"capture_M16_N16_i{i}_Q{m}p{n}.txt"
         start = time.time()
         print("\tLoading File From: " + file_name)
-        worst,average,sd = error_checker.runErrorChecker(m,n,file_name,True)
+        worst,average,sd = error_checker.runErrorChecker(m,n,file_name,True,False)
         csv_row_average_case+=f"{average:.20f},"
         csv_row_worst_case+=f"{worst:.20f},"
         csv_row_sd_case+=f"{sd:.20f},"
@@ -127,3 +127,20 @@ with open(directory_string + 'experiment_results_CORDIC_iters_average_error.csv'
         f.write(f"{line}\n")
     for line in csv_file_sd_contents:
         f.write(f"{line}\n")
+
+# 3. Generate min,max, mean, 25 percentile and 75 percentile for NxN from 2 to 16
+top_line = "NxN,min,25 percentile, mean, 75 percentile, max,"
+csv_file_contents=[top_line]
+
+for Mval in M_values:
+    file_name = directory_string + f"capture_M{Mval}_N{Mval}_i16_Q3p19.txt"
+    start = time.time()
+    print("\tLoading File From: " + file_name)
+    max,threequarters,mean,onequarter,min = error_checker.runErrorChecker(m,19,file_name,True,True)
+    csv_file_contents.append(f"{max:.20f},{threequarters:.20f},{mean:.20f},{onequarter:.20f},{min:.20f},")
+    end = time.time()
+    print(f"\tProcessing Time: {end - start}. Results: {max:.20f},{threequarters:.20f},{mean:.20f},{onequarter:.20f},{min:.20f},")
+
+with open(directory_string + 'experiment_results_box_plots_scaling.csv', 'w') as f:
+     for line in csv_file_contents:
+         f.write(f"{line}\n")

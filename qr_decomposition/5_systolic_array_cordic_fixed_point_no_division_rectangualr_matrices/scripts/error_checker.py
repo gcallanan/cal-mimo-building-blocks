@@ -15,7 +15,7 @@ import itertools
 from typing import Tuple
 
 
-def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="accuracy_results/capture_M4_N4_Q3p19.txt", suppress:bool=False) -> Tuple[float,float]:
+def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="accuracy_results/capture_M4_N4_Q3p19.txt", suppress:bool=False, print_percentiles:bool=False) -> Tuple[float,float]:
    """
    Read the A,Q and R matrices from a given text file and calculate the errors from the
    input A matrix and the A matrix produced by multiplying Q and R.
@@ -139,7 +139,11 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="accuracy_result
    if(not suppress):
       print("Maximum error across all input arrays/Mean error/SD across all input arrays (maximum is 1):")
       print(highest_error,mean_error, sd_error)
-   return np.max(highest_errors),np.mean(mean_errors), np.std(sd_errors)
+   
+   if(not print_percentiles):
+      return np.max(highest_errors),np.mean(mean_errors), np.std(sd_errors)
+   else:
+      return np.max(highest_errors),np.percentile(sd_errors,75), np.mean(mean_errors), np.percentile(sd_errors,25), np.min(sd_errors)
 
 # Program to be run if this script is executed.
 if(__name__ == "__main__"):
@@ -156,5 +160,5 @@ if(__name__ == "__main__"):
    args = parser.parse_args()
 
    # Execute error checker
-   highest_error,mean_error, sd = runErrorChecker(args.fixed_point_m, args.fixed_point_n, args.input_file, args.suppress)
+   highest_error,mean_error, sd = runErrorChecker(args.fixed_point_m, args.fixed_point_n, args.input_file, args.suppress, False)
    print(highest_error,mean_error, sd)
