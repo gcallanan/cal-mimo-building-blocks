@@ -494,7 +494,7 @@ namespace qrd:
 
                 // Uncomment these two lines if you want to print the value
                 // interpreted as a real value instead of as an integer
-                // printFixedPoint(next);
+                // printFixedPoint(output[index]);
                 // print(" ");
                 // And comment this line out
                 print("" + output[index] + " ");

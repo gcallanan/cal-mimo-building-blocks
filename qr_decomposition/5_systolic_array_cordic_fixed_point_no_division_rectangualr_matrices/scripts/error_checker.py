@@ -27,8 +27,8 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="accuracy_result
    :param n:int describe about parameter p2
    :param input_file_name:str describe about parameter p3
    :param suppress:bool describe about parameter p3
-   :return:(float, float). A tuple containing first, the worst error value among all the arrays
-                           and second, the RMS error value among the arrays.
+   :return:(float, float, float). A tuple containing the worst error value among all the arrays,
+                           the mean error value among the arrays as well as the std deviation.
    """
    # 1. Read data from file
    with open(input_file_name, 'r') as file:
@@ -42,6 +42,7 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="accuracy_result
    array_dimension=int(lrow[lrow.find("row ")+4][0:lrow.find(":")])
    highest_errors = []
    mean_errors = []
+   sd_errors = []
 
    for i in range(0,num_arrays):
 
@@ -88,15 +89,13 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="accuracy_result
       # 3. Multiply the Q and R matrix together to reconstruct the A matrix
       A_reconstructed = np.matmul(Q_matrix_fp_np, R_matrix_fp_np)
 
-      near0 = np.mean(np.abs(A_reconstructed))/10
-      A_reconstructed[np.abs(A_reconstructed) < near0] = near0
-      A_matrix_fp_np[np.abs(A_matrix_fp_np) < near0] = near0
-
       # 4. Determine the error between the source A matrix and the reconstructed one
       # Determine the error between the different elements
       errors = np.abs(A_matrix_fp_np - A_reconstructed)
       highest_error= np.max(errors)
-      mean_error= np.sqrt(np.mean(np.square(errors)))
+      #mean_error= np.sqrt(np.mean(np.square(errors)))
+      mean_error= np.mean(errors)
+      sd_error = np.std(errors)
 
       # 5. Print all arrays and errors. Only print the highest error value if the
       # suppress flag is set
@@ -125,17 +124,22 @@ def runErrorChecker(m: int = 3, n:int = 19, input_file_name:str="accuracy_result
          print(highest_error)
          print()
 
-         print("RMS error (1 is maximum):")
+         print("Mean error (1 is maximum):")
          print(mean_error)
+         print()
+
+         print("SD error:")
+         print(sd_error)
          print()
 
       highest_errors.append(highest_error)
       mean_errors.append(mean_error)
+      sd_errors.append(np.abs(errors))
 
    if(not suppress):
-      print("Maximum error across all input arrays/Mean error across all input arrays (maximum is 1):")
-      print(np.max(highest_errors),np.mean(mean_errors))
-   return np.max(highest_errors),np.mean(mean_errors)
+      print("Maximum error across all input arrays/Mean error/SD across all input arrays (maximum is 1):")
+      print(highest_error,mean_error, sd_error)
+   return np.max(highest_errors),np.mean(mean_errors), np.std(sd_errors)
 
 # Program to be run if this script is executed.
 if(__name__ == "__main__"):
@@ -152,5 +156,5 @@ if(__name__ == "__main__"):
    args = parser.parse_args()
 
    # Execute error checker
-   highest_error,mean_errors = runErrorChecker(args.fixed_point_m, args.fixed_point_n, args.input_file, args.suppress)
-   print(highest_error,mean_errors)
+   highest_error,mean_error, sd = runErrorChecker(args.fixed_point_m, args.fixed_point_n, args.input_file, args.suppress)
+   print(highest_error,mean_error, sd)

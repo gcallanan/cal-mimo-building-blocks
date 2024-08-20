@@ -9,7 +9,7 @@ There are two different experiments available in the results file:
 
 For each experiment the following is captured:
     1. The worst error among all the entries between the input A matrix and the recreated A matrix
-    2. The average error among all the entries between the input A matrix and the recreated A matrix
+    2. The average error + standard deviation among all the entries between the input A matrix and the recreated A matrix
 
 This results in 4 csv files, 2 for each experiment.
 """
@@ -42,24 +42,28 @@ m = m_values_not_unique_not_sorted[0]
 top_line = "M,N\\n,"+",".join([str(n) for n in n_values])
 csv_file_average_contents=[top_line]
 csv_file_worst_contents=[top_line]
+csv_file_sd_contents=[top_line]
 
 print("Generating results for changing M and n")
 
 for Mval in M_values:
     csv_row_worst_case = f"{Mval},"
     csv_row_average_case = f"{Mval},"
+    csv_row_sd_case = f"{Mval},"
     for n in n_values:
         file_name = directory_string + f"capture_M{Mval}_N{Mval}_i16_Q{m}p{n}.txt"
         print("\tLoading File From: " + file_name)
         start = time.time()
-        worst,average = error_checker.runErrorChecker(m,n,file_name,True)
+        worst,average,sd = error_checker.runErrorChecker(m,n,file_name,True)
         csv_row_average_case+=f"{average:.20f},"
+        csv_row_sd_case+=f"{sd:.20f},"
         csv_row_worst_case+=f"{worst:.20f},"
         end = time.time()
-        print(f"\tProcessing Time: {end - start}. Accuracy Worst: {worst}, Average: {average}")
+        print(f"\tProcessing Time: {end - start}. Accuracy Worst: {worst}, Average: {average}, SD: {sd}")
 
     csv_file_worst_contents.append(csv_row_worst_case)
     csv_file_average_contents.append(csv_row_average_case)
+    csv_file_sd_contents.append(csv_row_sd_case)
 
 # 1.6 Write the extracted results to file
 with open(directory_string + 'experiment_results_MxN_scaling_largest_error.csv', 'w') as f:
@@ -68,6 +72,8 @@ with open(directory_string + 'experiment_results_MxN_scaling_largest_error.csv',
 
 with open(directory_string + 'experiment_results_MxN_scaling_average_error.csv', 'w') as f:
     for line in csv_file_average_contents:
+        f.write(f"{line}\n")
+    for line in csv_file_sd_contents:
         f.write(f"{line}\n")
 
 # 2. Generate csv files for the second experiment
@@ -89,23 +95,27 @@ i_values.sort()
 top_line = "i\\n,"+",".join([str(n) for n in n_values])
 csv_file_average_contents=[top_line]
 csv_file_worst_contents=[top_line]
+csv_file_sd_contents=[top_line]
 
 print("Generating results for changing i and n")
 for i in i_values:
     csv_row_worst_case = f"{i},"
     csv_row_average_case = f"{i},"
+    csv_row_sd_case = f"{i},"
     for n in n_values:
         file_name = directory_string + f"capture_M16_N16_i{i}_Q{m}p{n}.txt"
         start = time.time()
         print("\tLoading File From: " + file_name)
-        worst,average = error_checker.runErrorChecker(m,n,file_name,True)
+        worst,average,sd = error_checker.runErrorChecker(m,n,file_name,True)
         csv_row_average_case+=f"{average:.20f},"
         csv_row_worst_case+=f"{worst:.20f},"
+        csv_row_sd_case+=f"{sd:.20f},"
         end = time.time()
-        print(f"\tProcessing Time: {end - start}. Accuracy Worst: {worst}, Average: {average}")
+        print(f"\tProcessing Time: {end - start}. Accuracy Worst: {worst}, Average: {average}, SD: {sd}")
 
     csv_file_worst_contents.append(csv_row_worst_case)
     csv_file_average_contents.append(csv_row_average_case)
+    csv_file_sd_contents.append(csv_row_sd_case)
 
 # 2.3 Write the extracted results to file
 with open(directory_string + 'experiment_results_CORDIC_iters_largest_error.csv', 'w') as f:
@@ -114,4 +124,6 @@ with open(directory_string + 'experiment_results_CORDIC_iters_largest_error.csv'
 
 with open(directory_string + 'experiment_results_CORDIC_iters_average_error.csv', 'w') as f:
     for line in csv_file_average_contents:
+        f.write(f"{line}\n")
+    for line in csv_file_sd_contents:
         f.write(f"{line}\n")
