@@ -30,7 +30,7 @@ do
 done
 
 # 1.1 Set the m,n and k values in the qrd_systolic_cordic_fixedpoint.cal file
-bash scripts/change_fixed_point_format.sh $m $n
+bash scripts/change_fixed_point_format.sh $m $n $i
 sed -i  "s/    uint M = .*/    uint M = $M;/" qrd_systolic_cordic_fixedpoint.cal
 sed -i  "s/    uint N = .*/    uint N = $N;/" qrd_systolic_cordic_fixedpoint.cal
 sed -i  "s/    uint num_CORDIC_iterations = .*/    uint num_CORDIC_iterations = $i;/" qrd_systolic_cordic_fixedpoint.cal

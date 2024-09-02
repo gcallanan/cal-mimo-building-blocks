@@ -3,7 +3,7 @@
 #
 # NOTE: This overwrites qrd_systolic_cordic_fixedpoint.cal
 
-
+import math 
 import argparse
 parser = argparse.ArgumentParser(
                     prog='Fixed Point CAL Code Generator',
@@ -11,20 +11,27 @@ parser = argparse.ArgumentParser(
          )
 parser.add_argument('-n', '--fixed_point_n', type=int, default=19, help="Number of fractional bits n for Qm.n fixed point numer")
 parser.add_argument('-m', '--fixed_point_m', type=int, default=3, help="Number of integer bits m (including sign bit) for Qm.n fixed point numer")
+parser.add_argument('-i', '--cordic_iterations', type=int, default=1000, help="Number of CORDIC iterations.")
 args = parser.parse_args()
 
 
 # Floating point format Qm.n
 m = args.fixed_point_m
 n = args.fixed_point_n
+iterations=args.cordic_iterations
 
 fp_one = 1 << n
 fp_minus_one = -fp_one 
 
-k = 0.607252956441381
+# K changes depending on the number of iterations.
+# It is normally okay to take K = infinity, but I want to see the differences
+K = 1
+for j in range(0,iterations):
+    K = K * math.sqrt(1 + 2**(-2*j))
+
+k = 1/K
 k_fp = int(k * (2 ** n))
 k_actual = k_fp * (2.0 ** -n)
-
 
 increment = 0.11
 increment_fp = int(increment * (2 ** n))
