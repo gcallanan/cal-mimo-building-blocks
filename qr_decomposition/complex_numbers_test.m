@@ -6,6 +6,11 @@ clear all
 % Maltsev, Alexander, et al. "Triangular systolic array with reduced 
 % latency for QR-decomposition of complex matrices." 2006 IEEE 
 % international symposium on circuits and systems (ISCAS). IEEE, 2006.
+%
+% Alternativly, this masters thesis takes a slower approach to perfoming a
+% similar thing: Ren, Minzhen. "Cordic-based Givens QR decomposition 
+% for MIMO detectors." (2013). A link to it is given here:
+% https://repository.gatech.edu/server/api/core/bitstreams/680bfb56-f8cd-4ca2-ba2f-b686fdddeac1/content
 
 K=1.6467602;
 k = 1/K;
